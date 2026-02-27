@@ -1,0 +1,17 @@
+[package]
+name = "guard-plugins"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+libloading = { workspace = true }
+guard-core = { path = "../guard-core" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

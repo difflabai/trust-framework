@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/guard-core",
+    "crates/guard-continuation",
+    "crates/guard-eval-client",
+    "crates/guard-plugins",
+    "crates/guard-adapters",
+]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+reqwest = { version = "0.12", features = ["json"] }
+libloading = "0.8"
