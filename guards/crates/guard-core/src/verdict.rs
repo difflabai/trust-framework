@@ -81,8 +81,15 @@ pub enum Domain {
 impl std::fmt::Display for Domain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Domain::General => write!(f, "general"),
+            Domain::Healthcare => write!(f, "healthcare"),
+            Domain::Finance => write!(f, "finance"),
+            Domain::Education => write!(f, "education"),
+            Domain::Legal => write!(f, "legal"),
+            Domain::ContentModeration => write!(f, "content_moderation"),
+            Domain::CustomerService => write!(f, "customer_service"),
+            Domain::CodeGeneration => write!(f, "code_generation"),
             Domain::Custom(s) => write!(f, "{s}"),
-            other => write!(f, "{other:?}"),
         }
     }
 }

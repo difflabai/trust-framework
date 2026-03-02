@@ -12,6 +12,12 @@ pub trait GuardPayload: Any + Send + Sync + Debug {
 
     /// Clone into a Box. Required because trait objects cannot require `Clone`.
     fn clone_payload(&self) -> Box<dyn GuardPayload>;
+
+    /// Serialize to a JSON value for adapter boundary serialization.
+    /// Required for the Modify verdict path to propagate modified payloads.
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        None
+    }
 }
 
 /// Implement Clone for boxed GuardPayload trait objects.
@@ -51,6 +57,9 @@ impl GuardPayload for JsonPayload {
     }
     fn clone_payload(&self) -> Box<dyn GuardPayload> {
         Box::new(self.clone())
+    }
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        serde_json::to_value(self).ok()
     }
 }
 

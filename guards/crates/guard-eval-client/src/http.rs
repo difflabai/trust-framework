@@ -44,6 +44,8 @@ impl EvalTransport for HttpTransport {
             .json(&events)
             .send()
             .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?
+            .error_for_status()
             .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
 
         let ack: LogAck = resp
@@ -62,6 +64,8 @@ impl EvalTransport for HttpTransport {
             .json(&req)
             .send()
             .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?
+            .error_for_status()
             .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
 
         let eval_resp: EvaluateResponse = resp
@@ -80,6 +84,8 @@ impl EvalTransport for HttpTransport {
             .json(&req)
             .send()
             .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?
+            .error_for_status()
             .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
 
         let eval_resp: EvaluateResponse = resp
@@ -97,6 +103,8 @@ impl EvalTransport for HttpTransport {
             .get(&url)
             .send()
             .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?
+            .error_for_status()
             .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
 
         let status: QuarantineStatus = resp
@@ -118,6 +126,8 @@ impl EvalTransport for HttpTransport {
             .json(&resolution)
             .send()
             .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?
+            .error_for_status()
             .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
 
         let status: QuarantineStatus = resp

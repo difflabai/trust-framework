@@ -50,11 +50,16 @@ impl EvalResponse {
             .filter_map(|e| serde_json::to_value(e).ok())
             .collect();
 
+        let modified_payload = result
+            .payload
+            .as_ref()
+            .and_then(|p| p.to_json_value());
+
         Self {
             request_id,
             verdict: format!("{:?}", result.verdict),
             reason: result.reason.clone(),
-            modified_payload: None,
+            modified_payload,
             warnings,
             evaluations,
         }

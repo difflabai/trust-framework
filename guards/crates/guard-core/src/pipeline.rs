@@ -251,10 +251,16 @@ impl GuardPipeline {
             }
         }
 
-        // Await all outstanding continuations
-        let continuation_deadline = self.config.continuation_timeout;
+        // Await all outstanding continuations, respecting the overall pipeline deadline
         for (guard_name, handle) in &continuations {
-            let resolution = handle.await_resolution(continuation_deadline).await;
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                tracing::warn!(guard = %guard_name, "Pipeline deadline exceeded before continuation");
+                verdicts.push(self.config.timeout_verdict);
+                continue;
+            }
+            let continuation_timeout = remaining.min(self.config.continuation_timeout);
+            let resolution = handle.await_resolution(continuation_timeout).await;
             match resolution {
                 Some(Resolution::Resolved {
                     verdict, warnings, ..

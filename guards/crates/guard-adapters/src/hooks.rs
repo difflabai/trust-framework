@@ -40,6 +40,9 @@ impl GuardPayload for ToolCallPayload {
     fn clone_payload(&self) -> Box<dyn GuardPayload> {
         Box::new(self.clone())
     }
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        serde_json::to_value(self).ok()
+    }
 }
 
 /// A tool result payload flowing back from tool execution.
@@ -60,6 +63,9 @@ impl GuardPayload for ToolResultPayload {
     fn clone_payload(&self) -> Box<dyn GuardPayload> {
         Box::new(self.clone())
     }
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        serde_json::to_value(self).ok()
+    }
 }
 
 /// A message payload (user or assistant message).
@@ -78,6 +84,9 @@ impl GuardPayload for MessagePayload {
     }
     fn clone_payload(&self) -> Box<dyn GuardPayload> {
         Box::new(self.clone())
+    }
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        serde_json::to_value(self).ok()
     }
 }
 
@@ -110,10 +119,15 @@ impl HookResponse {
             .filter_map(|w| serde_json::to_value(w).ok())
             .collect();
 
+        let modified_payload = result
+            .payload
+            .as_ref()
+            .and_then(|p| p.to_json_value());
+
         Self {
             verdict: format!("{:?}", result.verdict),
             reason: result.reason.clone(),
-            modified_payload: None,
+            modified_payload,
             warnings,
         }
     }

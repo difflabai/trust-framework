@@ -32,6 +32,9 @@ impl GuardPayload for McpRequest {
     fn clone_payload(&self) -> Box<dyn GuardPayload> {
         Box::new(self.clone())
     }
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        serde_json::to_value(self).ok()
+    }
 }
 
 /// An MCP response flowing back through the gateway.
@@ -134,8 +137,17 @@ impl<T: McpTransport> McpGuardMiddleware<T> {
             _ => {} // Permit, Modify, Escalate -> proceed
         }
 
-        // Step 2: Forward to inner MCP server.
-        let response = self.inner.send_request(request.clone()).await?;
+        // Step 2: Forward to inner MCP server, using modified payload if available.
+        let forwarded_request = if output_result.verdict == Verdict::Modify {
+            output_result
+                .payload
+                .as_ref()
+                .and_then(|p| p.downcast_ref::<McpRequest>().cloned())
+                .unwrap_or_else(|| request.clone())
+        } else {
+            request.clone()
+        };
+        let response = self.inner.send_request(forwarded_request).await?;
 
         // Step 3: InputGuard evaluates the response.
         let input_ctx = self.make_context();
@@ -169,7 +181,15 @@ impl<T: McpTransport> McpGuardMiddleware<T> {
                     id: response.id,
                 })
             }
-            _ => Ok(response), // Permit, Modify, Escalate -> pass through
+            Verdict::Modify => {
+                let modified_response = input_result
+                    .payload
+                    .as_ref()
+                    .and_then(|p| p.downcast_ref::<McpResponse>().cloned())
+                    .unwrap_or(response);
+                Ok(modified_response)
+            }
+            _ => Ok(response), // Permit, Escalate -> pass through
         }
     }
 }
@@ -183,6 +203,9 @@ impl GuardPayload for McpResponse {
     }
     fn clone_payload(&self) -> Box<dyn GuardPayload> {
         Box::new(self.clone())
+    }
+    fn to_json_value(&self) -> Option<serde_json::Value> {
+        serde_json::to_value(self).ok()
     }
 }
 
