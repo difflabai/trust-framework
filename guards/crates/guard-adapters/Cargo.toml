@@ -1,0 +1,20 @@
+[package]
+name = "guard-adapters"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+guard-core = { path = "../guard-core" }
+guard-eval-client = { path = "../guard-eval-client" }
+guard-plugins = { path = "../guard-plugins" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
