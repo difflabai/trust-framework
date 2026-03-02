@@ -12,6 +12,7 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 async-trait = { workspace = true }
+regex = "1"
 guard-core = { path = "../guard-core" }
 guard-eval-client = { path = "../guard-eval-client" }
 guard-plugins = { path = "../guard-plugins" }

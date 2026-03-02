@@ -12,6 +12,8 @@ use guard_core::{
     PipelineResult, QuarantineManager, RequestMeta,
 };
 
+use crate::builder::{self, GuardBuildRequest, GuardBuildResponse};
+
 /// Request body for evaluation endpoints.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvalRequest {
@@ -160,6 +162,14 @@ impl EvalServerHandler {
         serde_json::to_value(&ticket).map_err(GuardError::from)
     }
 
+    /// POST /v1/guards/build
+    ///
+    /// Generates guard source code and evaluation cases from a specification.
+    pub fn build_guard(&self, request: GuardBuildRequest) -> Result<GuardBuildResponse, GuardError> {
+        builder::build_guard(&request)
+            .map_err(|e| GuardError::Internal(format!("Guard build failed: {e}")))
+    }
+
     /// POST /v1/quarantine/:id
     pub async fn resolve_quarantine(
         &self,
@@ -263,6 +273,82 @@ mod tests {
     async fn quarantine_not_enabled_returns_error() {
         let handler = make_handler();
         let result = handler.get_quarantine("nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn build_guard_via_handler_regex() {
+        let handler = make_handler();
+        let req = GuardBuildRequest {
+            name: "test-regex-guard".into(),
+            description: "Test regex guard".into(),
+            guard_type: crate::builder::GuardType::Output,
+            approach: crate::builder::BuildApproach::Regex,
+            domain: None,
+            priority: 100,
+            verdict_on_match: "Deny".into(),
+            risk_level: "Medium".into(),
+            short_circuits: false,
+            spec: serde_json::json!({
+                "patterns": ["bad-word"],
+                "match_fields": ["content"],
+                "case_sensitive": false
+            }),
+            examples: None,
+        };
+
+        let resp = handler.build_guard(req).unwrap();
+        assert_eq!(resp.guard_name, "test-regex-guard");
+        assert!(resp.guard_code.contains("TestRegexGuard"));
+        assert!(!resp.eval_cases.is_empty());
+    }
+
+    #[test]
+    fn build_guard_via_handler_prolog() {
+        let handler = make_handler();
+        let req = GuardBuildRequest {
+            name: "test-prolog-guard".into(),
+            description: "Test prolog guard".into(),
+            guard_type: crate::builder::GuardType::Input,
+            approach: crate::builder::BuildApproach::Prolog,
+            domain: Some("finance".into()),
+            priority: 200,
+            verdict_on_match: "Deny".into(),
+            risk_level: "High".into(),
+            short_circuits: true,
+            spec: serde_json::json!({
+                "rules": "denied(delete) :- role(viewer).",
+                "query": "denied(Action)",
+                "fact_mappings": [{"json_field": "role", "prolog_name": "role"}],
+                "deny_on_success": true
+            }),
+            examples: None,
+        };
+
+        let resp = handler.build_guard(req).unwrap();
+        assert_eq!(resp.guard_name, "test-prolog-guard");
+        assert!(resp.guard_code.contains("TestPrologGuard"));
+        assert!(resp.guard_code.contains("PROLOG_RULES"));
+    }
+
+    #[test]
+    fn build_guard_via_handler_invalid_spec() {
+        let handler = make_handler();
+        let req = GuardBuildRequest {
+            name: "broken".into(),
+            description: "bad".into(),
+            guard_type: crate::builder::GuardType::Input,
+            approach: crate::builder::BuildApproach::Regex,
+            domain: None,
+            priority: 100,
+            verdict_on_match: "Deny".into(),
+            risk_level: "Low".into(),
+            short_circuits: false,
+            spec: serde_json::json!({"wrong_field": true}),
+            examples: None,
+        };
+
+        let result = handler.build_guard(req);
         assert!(result.is_err());
     }
 
