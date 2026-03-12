@@ -1,10 +1,12 @@
 pub mod adjudicator_guard;
 pub mod builder;
+pub mod file_sharing_guard;
 pub mod hooks;
 pub mod mcp;
 pub mod server;
 
 pub use adjudicator_guard::AdjudicatorGuard;
+pub use file_sharing_guard::FileSharingGuard;
 pub use builder::{
     BuildApproach, EvalCase, ExampleSet, FactMapping, GuardBuildRequest, GuardBuildResponse,
     GuardType, PrologSpec, RegexSpec, build_guard,
