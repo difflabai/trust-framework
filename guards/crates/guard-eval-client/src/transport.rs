@@ -49,6 +49,7 @@ impl EvalTransport for NoopTransport {
             verdict: "PERMIT".to_string(),
             reason: "noop transport: auto-permit".to_string(),
             modified_payload: None,
+            quarantine_tickets: Vec::new(),
             warnings: Vec::new(),
         })
     }
@@ -59,6 +60,7 @@ impl EvalTransport for NoopTransport {
             verdict: "PERMIT".to_string(),
             reason: "noop transport: auto-permit".to_string(),
             modified_payload: None,
+            quarantine_tickets: Vec::new(),
             warnings: Vec::new(),
         })
     }
