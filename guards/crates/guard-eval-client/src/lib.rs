@@ -94,6 +94,7 @@ mod tests {
             reason: "content sanitized".to_string(),
             modified_payload: Some(serde_json::json!({"sanitized": true})),
             warnings: vec![serde_json::json!({"level": "low", "message": "minor issue"})],
+            quarantine_tickets: Vec::new(),
         };
 
         let json = serde_json::to_string(&resp).unwrap();
@@ -113,6 +114,7 @@ mod tests {
             reason: "looks fine".to_string(),
             modified_payload: None,
             warnings: Vec::new(),
+            quarantine_tickets: Vec::new(),
         };
 
         let json = serde_json::to_string(&resp).unwrap();
@@ -299,6 +301,7 @@ mod tests {
                 reason: "mock".to_string(),
                 modified_payload: None,
                 warnings: Vec::new(),
+                quarantine_tickets: Vec::new(),
             })
         }
 
@@ -312,6 +315,7 @@ mod tests {
                 reason: "mock".to_string(),
                 modified_payload: None,
                 warnings: Vec::new(),
+                quarantine_tickets: Vec::new(),
             })
         }
 

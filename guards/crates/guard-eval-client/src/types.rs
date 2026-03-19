@@ -50,6 +50,9 @@ pub struct EvaluateResponse {
     pub reason: String,
     /// Optional modified payload (present when verdict is MODIFY).
     pub modified_payload: Option<serde_json::Value>,
+    /// Quarantine ticket IDs, if the verdict was QUARANTINE.
+    #[serde(default)]
+    pub quarantine_tickets: Vec<String>,
     /// Warnings emitted during evaluation.
     pub warnings: Vec<serde_json::Value>,
 }

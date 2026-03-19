@@ -208,10 +208,10 @@ fn make_remote_request(
 
 fn parse_verdict(s: &str) -> Verdict {
     match s.to_uppercase().as_str() {
-        "DENY" | "Deny" => Verdict::Deny,
-        "QUARANTINE" | "Quarantine" => Verdict::Quarantine,
-        "ESCALATE" | "Escalate" => Verdict::Escalate,
-        "MODIFY" | "Modify" => Verdict::Modify,
+        "DENY" => Verdict::Deny,
+        "QUARANTINE" => Verdict::Quarantine,
+        "ESCALATE" => Verdict::Escalate,
+        "MODIFY" => Verdict::Modify,
         _ => Verdict::Permit,
     }
 }
@@ -221,7 +221,7 @@ fn eval_result_from_response(resp: EvaluateResponse) -> EvalResult {
         verdict: parse_verdict(&resp.verdict),
         reason: resp.reason,
         modified_payload: resp.modified_payload,
-        quarantine_tickets: vec![],
+        quarantine_tickets: resp.quarantine_tickets,
     }
 }
 

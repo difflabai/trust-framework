@@ -17,6 +17,7 @@ use guard_core::{
     OperatingContext, OutputGuards, PipelineConfigInfo, PipelineResult, QuarantineManager,
     RequestMeta,
 };
+use ledger::MultiLedger;
 
 use crate::adjudicator_guard::{adj_context_from_guard, guard_risk_from_adj, guard_verdict_from_adj};
 use crate::builder::{self, GuardBuildRequest, GuardBuildResponse};
@@ -156,6 +157,7 @@ pub struct EvalServerHandler {
     quarantine_manager: Option<Arc<QuarantineManager>>,
     adjudicator: Option<Arc<BehaviorAdjudicator>>,
     attestation_service: Option<Arc<AttestationService>>,
+    ledger: Option<Arc<MultiLedger>>,
 }
 
 impl EvalServerHandler {
@@ -170,6 +172,7 @@ impl EvalServerHandler {
             quarantine_manager,
             adjudicator: None,
             attestation_service: None,
+            ledger: None,
         }
     }
 
@@ -186,12 +189,22 @@ impl EvalServerHandler {
             quarantine_manager,
             adjudicator: Some(adjudicator),
             attestation_service: None,
+            ledger: None,
         }
     }
 
     /// Enable attestation support with the given signing key.
     pub fn with_attestation(mut self, signing_key: Vec<u8>) -> Self {
         self.attestation_service = Some(Arc::new(AttestationService::new(signing_key)));
+        self
+    }
+
+    /// Attach a multi-ledger writer to this handler.
+    ///
+    /// When set, adjudication results are automatically written to all
+    /// configured ledger backends after each verdict.
+    pub fn with_ledger(mut self, ledger: Arc<MultiLedger>) -> Self {
+        self.ledger = Some(ledger);
         self
     }
 
@@ -247,7 +260,8 @@ impl EvalServerHandler {
     ///
     /// Runs the behavior adjudicator's full policy pipeline on the content.
     /// If `raw_input` is provided, input-output coherence is also evaluated.
-    pub fn adjudicate(
+    /// When a ledger is configured, the verdict is written to all backends.
+    pub async fn adjudicate(
         &self,
         request: AdjudicateRequest,
     ) -> Result<AdjudicateResponse, GuardError> {
@@ -268,6 +282,26 @@ impl EvalServerHandler {
         } else {
             adj.adjudicate_output_only(&proposed, Some(&adj_ctx))
         };
+
+        // Write verdict to ledger if configured.
+        if let Some(ref ledger) = self.ledger {
+            match ledger.record_verdict(&result).await {
+                Ok(receipts) => {
+                    tracing::info!(
+                        adjudication_id = %result.adjudication_id,
+                        ledger_count = receipts.len(),
+                        "Verdict written to ledger(s)"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        adjudication_id = %result.adjudication_id,
+                        error = %e,
+                        "Failed to write verdict to ledger"
+                    );
+                }
+            }
+        }
 
         Ok(AdjudicateResponse::from_adjudication(
             request.request_id,
@@ -388,7 +422,7 @@ impl EvalServerHandler {
                     raw_input: payload.raw_input,
                     context: request.context,
                 };
-                let response = self.adjudicate(adj_req)?;
+                let response = self.adjudicate(adj_req).await?;
 
                 Ok(svc.attest_action(
                     request.request_id,
@@ -650,8 +684,8 @@ mod tests {
 
     // -- Adjudicator endpoint tests --
 
-    #[test]
-    fn adjudicate_not_enabled_returns_error() {
+    #[tokio::test]
+    async fn adjudicate_not_enabled_returns_error() {
         let handler = make_handler();
         let req = AdjudicateRequest {
             request_id: "r1".into(),
@@ -659,12 +693,12 @@ mod tests {
             raw_input: None,
             context: None,
         };
-        let result = handler.adjudicate(req);
+        let result = handler.adjudicate(req).await;
         assert!(result.is_err());
     }
 
-    #[test]
-    fn adjudicate_safe_content() {
+    #[tokio::test]
+    async fn adjudicate_safe_content() {
         let handler = make_handler_with_adjudicator();
         let req = AdjudicateRequest {
             request_id: "r1".into(),
@@ -672,14 +706,14 @@ mod tests {
             raw_input: None,
             context: None,
         };
-        let resp = handler.adjudicate(req).unwrap();
+        let resp = handler.adjudicate(req).await.unwrap();
         assert_eq!(resp.request_id, "r1");
         assert_eq!(resp.verdict, "Permit");
         assert!(!resp.adjudication_id.is_empty());
     }
 
-    #[test]
-    fn adjudicate_unsafe_content() {
+    #[tokio::test]
+    async fn adjudicate_unsafe_content() {
         let handler = make_handler_with_adjudicator();
         let req = AdjudicateRequest {
             request_id: "r2".into(),
@@ -687,12 +721,12 @@ mod tests {
             raw_input: None,
             context: None,
         };
-        let resp = handler.adjudicate(req).unwrap();
+        let resp = handler.adjudicate(req).await.unwrap();
         assert_eq!(resp.verdict, "Deny");
     }
 
-    #[test]
-    fn adjudicate_with_raw_input() {
+    #[tokio::test]
+    async fn adjudicate_with_raw_input() {
         let handler = make_handler_with_adjudicator();
         let req = AdjudicateRequest {
             request_id: "r3".into(),
@@ -700,12 +734,12 @@ mod tests {
             raw_input: Some("Tell me about Python".into()),
             context: None,
         };
-        let resp = handler.adjudicate(req).unwrap();
+        let resp = handler.adjudicate(req).await.unwrap();
         assert_eq!(resp.verdict, "Permit");
     }
 
-    #[test]
-    fn adjudicate_with_denied_topic_context() {
+    #[tokio::test]
+    async fn adjudicate_with_denied_topic_context() {
         let handler = make_handler_with_adjudicator();
         let ctx = serde_json::json!({
             "domain": "general",
@@ -721,7 +755,7 @@ mod tests {
             raw_input: None,
             context: Some(ctx),
         };
-        let resp = handler.adjudicate(req).unwrap();
+        let resp = handler.adjudicate(req).await.unwrap();
         assert_eq!(resp.verdict, "Deny");
     }
 
