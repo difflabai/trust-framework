@@ -12,7 +12,7 @@ Both systems share the same verdict model and can be composed together: the adju
 ## Crate Structure
 
 ```
-manado/
+sarajevo/
 ├── adjudicator/                  # Behavior adjudicator library
 │   └── src/
 │       ├── engine.rs             # BehaviorAdjudicator - orchestrates the 5-stage pipeline
@@ -28,7 +28,8 @@ manado/
 │       ├── guard-continuation/   # Async continuation handles
 │       ├── guard-adapters/       # Server, builder, hooks, MCP, adjudicator adapter
 │       ├── guard-eval-client/    # HTTP client for remote evaluation
-│       └── guard-plugins/        # Pluggable backends (Prolog, FFI)
+│       ├── guard-plugins/        # Pluggable backends (Prolog, FFI)
+│       └── trust-proxy/          # Sidecar reverse proxy for agent guard enforcement
 └── Architecture.md               # This file
 ```
 
@@ -172,3 +173,35 @@ Guards can return a `Quarantine` verdict, placing payloads in a holding state fo
 - Pending/Approved/Denied states
 - TTL-based automatic cleanup
 - Resolution via the server API
+
+## Sidecar Proxy (`trust-proxy`)
+
+To enforce that agent inputs and outputs go through the guard pipeline, the `trust-proxy` binary runs as a sidecar reverse proxy between agents and their external endpoints. This is analogous to Istio/Envoy for service meshes.
+
+### Security Model
+
+The proxy runs **out-of-process** at a network boundary. The agent cannot modify or bypass the proxy — it sees the proxy as its API endpoint and has no direct access to the real upstream. Network isolation (Docker, iptables, Kubernetes NetworkPolicy) can optionally prevent the agent from making direct connections.
+
+```
+Agent ──HTTP/WS──▶ trust-proxy ──▶ OutputGuards ──▶ Upstream API
+                                                          │
+Agent ◀──HTTP/WS── trust-proxy ◀── InputGuards  ◀────────┘
+```
+
+### Three Modes
+
+| Mode | Agent Type | Protocol | What It Understands |
+|------|-----------|----------|---------------------|
+| `generic` | Any (Python, JS, etc.) | HTTP + WebSocket | Opaque JSON payloads |
+| `openclaw` | OpenClaw (TypeScript) | WebSocket | `{type:"req", method, params}` frames, PRISM hooks |
+| `ironclaw` | IronClaw (Rust) | HTTP | `/tools/*`, `/sandbox/*`, `/channels/*` path routing |
+
+The `openclaw` and `ironclaw` modes parse agent-specific message formats to extract richer fields (tool names, session IDs, sandbox flags) for more targeted guard evaluation. The `generic` mode works with any agent that makes HTTP calls.
+
+### Deployment Options
+
+- **Bare process** — run the proxy locally, set environment variables (`OPENAI_BASE_URL`, `HTTP_PROXY`) to route agent traffic through it
+- **Docker Compose** — use `internal: true` networks to ensure the agent container can only reach the proxy, not external APIs directly
+- **Kubernetes** — deploy as a sidecar container with a NetworkPolicy restricting agent egress
+
+See `guards/crates/trust-proxy/README.md` for full deployment examples and configuration details.
