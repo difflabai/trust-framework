@@ -1,6 +1,7 @@
 pub mod adjudicator_guard;
 pub mod builder;
 pub mod file_sharing_guard;
+pub mod guard_factory;
 pub mod hooks;
 pub mod mcp;
 pub mod prompt_bonk_guard;

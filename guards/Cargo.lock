@@ -532,6 +532,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "toml",
  "tracing",
  "uuid",
 ]
@@ -1960,6 +1961,24 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "trust-server"
+version = "0.1.0"
+dependencies = [
+ "adjudicator",
+ "axum",
+ "clap",
+ "guard-adapters",
+ "guard-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
