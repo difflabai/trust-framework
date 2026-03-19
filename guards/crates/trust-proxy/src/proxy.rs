@@ -12,6 +12,16 @@ use url::Url;
 
 use crate::guard_eval::{EvalResult, GuardEvaluator};
 
+/// Serialize a JSON value to a text string for WebSocket frames.
+/// If the value is a plain string (originally non-JSON text), return
+/// the inner string to avoid double-quoting.
+fn value_to_ws_text(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.clone(),
+        _ => serde_json::to_string(value).unwrap_or_default(),
+    }
+}
+
 /// Shared state for the proxy, available to all request handlers.
 pub struct ProxyState {
     pub evaluator: GuardEvaluator,
@@ -93,7 +103,17 @@ pub async fn forward_http(
         }
         req = req.header(name, value);
     }
-    req = req.json(&body);
+    // If the body was originally non-JSON (wrapped as Value::String during parsing),
+    // send it as raw bytes to preserve the original content type.
+    match &body {
+        serde_json::Value::String(s) => {
+            req = req.body(s.clone());
+        }
+        serde_json::Value::Null => {}
+        _ => {
+            req = req.json(&body);
+        }
+    }
 
     let resp = req.send().await.map_err(|e| {
         (StatusCode::BAD_GATEWAY, format!("upstream error: {e}")).into_response()
@@ -262,8 +282,7 @@ async fn proxy_ws_connection(state: Arc<ProxyState>, agent_ws: WebSocket) {
                             }
                             Verdict::Modify => {
                                 let forwarded = eval.modified_payload.unwrap_or(payload);
-                                let fwd_text =
-                                    serde_json::to_string(&forwarded).unwrap_or_default();
+                                let fwd_text = value_to_ws_text(&forwarded);
                                 if upstream_sink
                                     .send(TungsteniteMessage::Text(fwd_text.into()))
                                     .await
@@ -336,8 +355,7 @@ async fn proxy_ws_connection(state: Arc<ProxyState>, agent_ws: WebSocket) {
                             }
                             Verdict::Modify => {
                                 let forwarded = eval.modified_payload.unwrap_or(payload);
-                                let fwd_text =
-                                    serde_json::to_string(&forwarded).unwrap_or_default();
+                                let fwd_text = value_to_ws_text(&forwarded);
                                 if agent_sink
                                     .send(Message::text(fwd_text))
                                     .await
