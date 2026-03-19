@@ -83,12 +83,12 @@ pub struct CalimeroLedger {
 }
 
 impl CalimeroLedger {
-    pub fn new(config: CalimeroLedgerConfig) -> Self {
+    pub fn new(config: CalimeroLedgerConfig) -> Result<Self, LedgerError> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_secs))
             .build()
-            .unwrap_or_default();
-        Self { config, client }
+            .map_err(|e| LedgerError::Calimero(format!("failed to build reqwest client: {e}")))?;
+        Ok(Self { config, client })
     }
 }
 
@@ -224,7 +224,7 @@ mod tests {
             write_method: default_write_method(),
             timeout_secs: 5,
         };
-        let ledger = CalimeroLedger::new(config);
+        let ledger = CalimeroLedger::new(config).unwrap();
         assert_eq!(ledger.ledger_type(), LedgerType::Calimero);
         assert_eq!(ledger.name(), "calimero");
     }

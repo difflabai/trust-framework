@@ -81,25 +81,25 @@ impl LedgerConfig {
         }
 
         if let Some(cal_config) = self.calimero {
-            let cal = CalimeroLedger::new(cal_config);
+            let cal = CalimeroLedger::new(cal_config)?;
             ledgers.push(Arc::new(cal));
             tracing::info!("Ledger backend enabled: calimero");
         }
 
         if let Some(near_config) = self.near {
-            let near = NearLedger::new(near_config);
+            let near = NearLedger::new(near_config)?;
             ledgers.push(Arc::new(near));
             tracing::info!("Ledger backend enabled: near");
         }
 
         if let Some(volt_config) = self.voltdb {
-            let volt = VoltDbLedger::new(volt_config);
+            let volt = VoltDbLedger::new(volt_config)?;
             ledgers.push(Arc::new(volt));
             tracing::info!("Ledger backend enabled: voltdb");
         }
 
         if let Some(fluree_config) = self.flureedb {
-            let fluree = FlureeLedger::new(fluree_config);
+            let fluree = FlureeLedger::new(fluree_config)?;
             ledgers.push(Arc::new(fluree));
             tracing::info!("Ledger backend enabled: flureedb");
         }

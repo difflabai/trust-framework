@@ -59,12 +59,12 @@ pub struct VoltDbLedger {
 }
 
 impl VoltDbLedger {
-    pub fn new(config: VoltDbLedgerConfig) -> Self {
+    pub fn new(config: VoltDbLedgerConfig) -> Result<Self, LedgerError> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_secs))
             .build()
-            .unwrap_or_default();
-        Self { config, client }
+            .map_err(|e| LedgerError::Database(format!("failed to build reqwest client: {e}")))?;
+        Ok(Self { config, client })
     }
 }
 
@@ -207,12 +207,12 @@ pub struct FlureeLedger {
 }
 
 impl FlureeLedger {
-    pub fn new(config: FlureeLedgerConfig) -> Self {
+    pub fn new(config: FlureeLedgerConfig) -> Result<Self, LedgerError> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_secs))
             .build()
-            .unwrap_or_default();
-        Self { config, client }
+            .map_err(|e| LedgerError::Database(format!("failed to build reqwest client: {e}")))?;
+        Ok(Self { config, client })
     }
 }
 
@@ -362,7 +362,7 @@ mod tests {
             password: None,
             timeout_secs: 5,
         };
-        let ledger = VoltDbLedger::new(config);
+        let ledger = VoltDbLedger::new(config).unwrap();
         assert_eq!(ledger.ledger_type(), LedgerType::VoltDb);
         assert_eq!(ledger.name(), "voltdb");
     }
@@ -403,7 +403,7 @@ mod tests {
             collection: default_fluree_collection(),
             timeout_secs: 5,
         };
-        let ledger = FlureeLedger::new(config);
+        let ledger = FlureeLedger::new(config).unwrap();
         assert_eq!(ledger.ledger_type(), LedgerType::FlureeDb);
         assert_eq!(ledger.name(), "flureedb");
     }
