@@ -343,23 +343,25 @@ mod tests {
             &self,
         ) -> Result<guard_core::GuardConfigAttestation, GuardError> {
             Ok(guard_core::GuardConfigAttestation {
-                attestation_id: "mock-att".to_string(),
-                timestamp: chrono::Utc::now(),
-                input_guards: vec![],
-                output_guards: vec![],
-                input_pipeline_config: guard_core::PipelineConfigInfo {
-                    short_circuit_on_deny: true,
-                    timeout_secs: 30.0,
-                    timeout_verdict: "Deny".into(),
-                    continuation_timeout_secs: 10.0,
-                    max_guards: 64,
-                },
-                output_pipeline_config: guard_core::PipelineConfigInfo {
-                    short_circuit_on_deny: true,
-                    timeout_secs: 30.0,
-                    timeout_verdict: "Deny".into(),
-                    continuation_timeout_secs: 10.0,
-                    max_guards: 64,
+                body: guard_core::attestation::GuardConfigAttestationBody {
+                    attestation_id: "mock-att".to_string(),
+                    timestamp: chrono::Utc::now(),
+                    input_guards: vec![],
+                    output_guards: vec![],
+                    input_pipeline_config: guard_core::PipelineConfigInfo {
+                        short_circuit_on_deny: true,
+                        timeout_secs: 30.0,
+                        timeout_verdict: "Deny".into(),
+                        continuation_timeout_secs: 10.0,
+                        max_guards: 64,
+                    },
+                    output_pipeline_config: guard_core::PipelineConfigInfo {
+                        short_circuit_on_deny: true,
+                        timeout_secs: 30.0,
+                        timeout_verdict: "Deny".into(),
+                        continuation_timeout_secs: 10.0,
+                        max_guards: 64,
+                    },
                 },
                 signature: String::new(),
             })
@@ -370,13 +372,15 @@ mod tests {
             request: AttestActionRequest,
         ) -> Result<guard_core::ActionAttestation, GuardError> {
             Ok(guard_core::ActionAttestation {
-                attestation_id: "mock-action-att".to_string(),
-                timestamp: chrono::Utc::now(),
-                request_id: request.request_id,
-                action_kind: request.action_kind,
-                verdict: "Permit".to_string(),
-                reason: "mock".to_string(),
-                guard_evaluations: vec![],
+                body: guard_core::attestation::ActionAttestationBody {
+                    attestation_id: "mock-action-att".to_string(),
+                    timestamp: chrono::Utc::now(),
+                    request_id: request.request_id,
+                    action_kind: request.action_kind,
+                    verdict: "Permit".to_string(),
+                    reason: "mock".to_string(),
+                    guard_evaluations: vec![],
+                },
                 signature: String::new(),
             })
         }

@@ -39,7 +39,7 @@ impl Default for PipelineConfig {
 }
 
 /// Record of a single guard's evaluation within the pipeline.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GuardEvaluation {
     /// Name of the guard that was evaluated.
     pub guard_name: String,

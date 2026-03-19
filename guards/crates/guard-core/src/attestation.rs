@@ -14,10 +14,14 @@
 //! can verify they were produced by a trust server holding the signing key.
 
 use chrono::{DateTime, Utc};
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::fmt;
 
 use crate::guard::GuardDescriptor;
+
+type HmacSha256 = Hmac<Sha256>;
 
 // ---------------------------------------------------------------------------
 // Guard configuration attestation
@@ -55,10 +59,9 @@ pub struct PipelineConfigInfo {
     pub max_guards: usize,
 }
 
-/// An attestation that a particular set of guards are loaded and running
-/// in the trust server's input and output pipelines.
+/// The signable body of a guard configuration attestation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GuardConfigAttestation {
+pub struct GuardConfigAttestationBody {
     /// Unique attestation identifier.
     pub attestation_id: String,
     /// When the attestation was produced.
@@ -71,8 +74,35 @@ pub struct GuardConfigAttestation {
     pub input_pipeline_config: PipelineConfigInfo,
     /// Output pipeline configuration.
     pub output_pipeline_config: PipelineConfigInfo,
+}
+
+/// An attestation that a particular set of guards are loaded and running
+/// in the trust server's input and output pipelines.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuardConfigAttestation {
+    #[serde(flatten)]
+    pub body: GuardConfigAttestationBody,
     /// HMAC-SHA256 signature over the canonical attestation body.
     pub signature: String,
+}
+
+// Convenience accessors so existing code can still use `attestation.input_guards` etc.
+impl GuardConfigAttestation {
+    pub fn attestation_id(&self) -> &str {
+        &self.body.attestation_id
+    }
+    pub fn input_guards(&self) -> &[GuardDescriptorInfo] {
+        &self.body.input_guards
+    }
+    pub fn output_guards(&self) -> &[GuardDescriptorInfo] {
+        &self.body.output_guards
+    }
+    pub fn input_pipeline_config(&self) -> &PipelineConfigInfo {
+        &self.body.input_pipeline_config
+    }
+    pub fn output_pipeline_config(&self) -> &PipelineConfigInfo {
+        &self.body.output_pipeline_config
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -106,10 +136,9 @@ pub struct GuardEvaluationRecord {
     pub output_kind: String,
 }
 
-/// An attestation that a specific action was processed by the trust server
-/// and the verdict that was reached.
+/// The signable body of an action attestation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ActionAttestation {
+pub struct ActionAttestationBody {
     /// Unique attestation identifier.
     pub attestation_id: String,
     /// When the attestation was produced.
@@ -124,8 +153,38 @@ pub struct ActionAttestation {
     pub reason: String,
     /// Per-guard evaluation records (empty for adjudication actions).
     pub guard_evaluations: Vec<GuardEvaluationRecord>,
+}
+
+/// An attestation that a specific action was processed by the trust server
+/// and the verdict that was reached.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionAttestation {
+    #[serde(flatten)]
+    pub body: ActionAttestationBody,
     /// HMAC-SHA256 signature over the canonical attestation body.
     pub signature: String,
+}
+
+// Convenience accessors for existing code.
+impl ActionAttestation {
+    pub fn attestation_id(&self) -> &str {
+        &self.body.attestation_id
+    }
+    pub fn request_id(&self) -> &str {
+        &self.body.request_id
+    }
+    pub fn action_kind(&self) -> ActionKind {
+        self.body.action_kind
+    }
+    pub fn verdict(&self) -> &str {
+        &self.body.verdict
+    }
+    pub fn reason(&self) -> &str {
+        &self.body.reason
+    }
+    pub fn guard_evaluations(&self) -> &[GuardEvaluationRecord] {
+        &self.body.guard_evaluations
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -136,138 +195,10 @@ pub struct ActionAttestation {
 ///
 /// Returns the signature as a lowercase hex string.
 pub fn hmac_sha256(key: &[u8], message: &[u8]) -> String {
-    // HMAC-SHA256: inner = H(K ^ ipad || message), outer = H(K ^ opad || inner)
-    const BLOCK_SIZE: usize = 64;
-    const HASH_SIZE: usize = 32;
-
-    // If the key is longer than the block size, hash it first.
-    let key_block = if key.len() > BLOCK_SIZE {
-        let h = sha256(key);
-        let mut block = [0u8; BLOCK_SIZE];
-        block[..HASH_SIZE].copy_from_slice(&h);
-        block
-    } else {
-        let mut block = [0u8; BLOCK_SIZE];
-        block[..key.len()].copy_from_slice(key);
-        block
-    };
-
-    let mut i_key_pad = [0x36u8; BLOCK_SIZE];
-    let mut o_key_pad = [0x5cu8; BLOCK_SIZE];
-    for i in 0..BLOCK_SIZE {
-        i_key_pad[i] ^= key_block[i];
-        o_key_pad[i] ^= key_block[i];
-    }
-
-    // inner hash
-    let mut inner_data = Vec::with_capacity(BLOCK_SIZE + message.len());
-    inner_data.extend_from_slice(&i_key_pad);
-    inner_data.extend_from_slice(message);
-    let inner_hash = sha256(&inner_data);
-
-    // outer hash
-    let mut outer_data = Vec::with_capacity(BLOCK_SIZE + HASH_SIZE);
-    outer_data.extend_from_slice(&o_key_pad);
-    outer_data.extend_from_slice(&inner_hash);
-    let result = sha256(&outer_data);
-
-    hex_encode(&result)
-}
-
-/// Minimal SHA-256 implementation (no external crate dependency).
-fn sha256(data: &[u8]) -> [u8; 32] {
-    const K: [u32; 64] = [
-        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-        0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-        0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-        0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-        0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-        0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-        0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-    ];
-
-    let mut h: [u32; 8] = [
-        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
-    ];
-
-    // Pre-processing: pad the message
-    let bit_len = (data.len() as u64) * 8;
-    let mut msg = data.to_vec();
-    msg.push(0x80);
-    while (msg.len() % 64) != 56 {
-        msg.push(0);
-    }
-    msg.extend_from_slice(&bit_len.to_be_bytes());
-
-    // Process each 512-bit block
-    for chunk in msg.chunks(64) {
-        let mut w = [0u32; 64];
-        for i in 0..16 {
-            w[i] = u32::from_be_bytes([
-                chunk[4 * i],
-                chunk[4 * i + 1],
-                chunk[4 * i + 2],
-                chunk[4 * i + 3],
-            ]);
-        }
-        for i in 16..64 {
-            let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
-            let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
-            w[i] = w[i - 16]
-                .wrapping_add(s0)
-                .wrapping_add(w[i - 7])
-                .wrapping_add(s1);
-        }
-
-        let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hh] = h;
-
-        for i in 0..64 {
-            let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
-            let ch = (e & f) ^ ((!e) & g);
-            let temp1 = hh
-                .wrapping_add(s1)
-                .wrapping_add(ch)
-                .wrapping_add(K[i])
-                .wrapping_add(w[i]);
-            let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
-            let maj = (a & b) ^ (a & c) ^ (b & c);
-            let temp2 = s0.wrapping_add(maj);
-
-            hh = g;
-            g = f;
-            f = e;
-            e = d.wrapping_add(temp1);
-            d = c;
-            c = b;
-            b = a;
-            a = temp1.wrapping_add(temp2);
-        }
-
-        h[0] = h[0].wrapping_add(a);
-        h[1] = h[1].wrapping_add(b);
-        h[2] = h[2].wrapping_add(c);
-        h[3] = h[3].wrapping_add(d);
-        h[4] = h[4].wrapping_add(e);
-        h[5] = h[5].wrapping_add(f);
-        h[6] = h[6].wrapping_add(g);
-        h[7] = h[7].wrapping_add(hh);
-    }
-
-    let mut result = [0u8; 32];
-    for (i, &val) in h.iter().enumerate() {
-        result[4 * i..4 * i + 4].copy_from_slice(&val.to_be_bytes());
-    }
-    result
+    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    mac.update(message);
+    let result = mac.finalize();
+    hex_encode(&result.into_bytes())
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
@@ -321,35 +252,19 @@ impl AttestationService {
         input_pipeline_config: PipelineConfigInfo,
         output_pipeline_config: PipelineConfigInfo,
     ) -> GuardConfigAttestation {
-        let attestation_id = uuid::Uuid::new_v4().to_string();
-        let timestamp = Utc::now();
+        let body = GuardConfigAttestationBody {
+            attestation_id: uuid::Uuid::new_v4().to_string(),
+            timestamp: Utc::now(),
+            input_guards: input_guards.iter().map(|d| GuardDescriptorInfo::from(*d)).collect(),
+            output_guards: output_guards.iter().map(|d| GuardDescriptorInfo::from(*d)).collect(),
+            input_pipeline_config,
+            output_pipeline_config,
+        };
 
-        let input_infos: Vec<GuardDescriptorInfo> =
-            input_guards.iter().map(|d| GuardDescriptorInfo::from(*d)).collect();
-        let output_infos: Vec<GuardDescriptorInfo> =
-            output_guards.iter().map(|d| GuardDescriptorInfo::from(*d)).collect();
-
-        // Build canonical body for signing (everything except the signature).
-        let body = serde_json::json!({
-            "attestation_id": attestation_id,
-            "timestamp": timestamp,
-            "input_guards": input_infos,
-            "output_guards": output_infos,
-            "input_pipeline_config": input_pipeline_config,
-            "output_pipeline_config": output_pipeline_config,
-        });
         let canonical = serde_json::to_string(&body).expect("attestation body is serializable");
         let signature = hmac_sha256(&self.signing_key, canonical.as_bytes());
 
-        GuardConfigAttestation {
-            attestation_id,
-            timestamp,
-            input_guards: input_infos,
-            output_guards: output_infos,
-            input_pipeline_config,
-            output_pipeline_config,
-            signature,
-        }
+        GuardConfigAttestation { body, signature }
     }
 
     /// Produce an attestation that a specific action was processed and
@@ -362,59 +277,33 @@ impl AttestationService {
         reason: String,
         guard_evaluations: Vec<GuardEvaluationRecord>,
     ) -> ActionAttestation {
-        let attestation_id = uuid::Uuid::new_v4().to_string();
-        let timestamp = Utc::now();
-
-        let body = serde_json::json!({
-            "attestation_id": attestation_id,
-            "timestamp": timestamp,
-            "request_id": request_id,
-            "action_kind": action_kind,
-            "verdict": verdict,
-            "reason": reason,
-            "guard_evaluations": guard_evaluations,
-        });
-        let canonical = serde_json::to_string(&body).expect("attestation body is serializable");
-        let signature = hmac_sha256(&self.signing_key, canonical.as_bytes());
-
-        ActionAttestation {
-            attestation_id,
-            timestamp,
+        let body = ActionAttestationBody {
+            attestation_id: uuid::Uuid::new_v4().to_string(),
+            timestamp: Utc::now(),
             request_id,
             action_kind,
             verdict,
             reason,
             guard_evaluations,
-            signature,
-        }
+        };
+
+        let canonical = serde_json::to_string(&body).expect("attestation body is serializable");
+        let signature = hmac_sha256(&self.signing_key, canonical.as_bytes());
+
+        ActionAttestation { body, signature }
     }
 
     /// Verify a guard configuration attestation's signature.
     pub fn verify_guard_config(&self, attestation: &GuardConfigAttestation) -> bool {
-        let body = serde_json::json!({
-            "attestation_id": attestation.attestation_id,
-            "timestamp": attestation.timestamp,
-            "input_guards": attestation.input_guards,
-            "output_guards": attestation.output_guards,
-            "input_pipeline_config": attestation.input_pipeline_config,
-            "output_pipeline_config": attestation.output_pipeline_config,
-        });
-        let canonical = serde_json::to_string(&body).expect("attestation body is serializable");
+        let canonical =
+            serde_json::to_string(&attestation.body).expect("attestation body is serializable");
         verify_hmac_sha256(&self.signing_key, canonical.as_bytes(), &attestation.signature)
     }
 
     /// Verify an action attestation's signature.
     pub fn verify_action(&self, attestation: &ActionAttestation) -> bool {
-        let body = serde_json::json!({
-            "attestation_id": attestation.attestation_id,
-            "timestamp": attestation.timestamp,
-            "request_id": attestation.request_id,
-            "action_kind": attestation.action_kind,
-            "verdict": attestation.verdict,
-            "reason": attestation.reason,
-            "guard_evaluations": attestation.guard_evaluations,
-        });
-        let canonical = serde_json::to_string(&body).expect("attestation body is serializable");
+        let canonical =
+            serde_json::to_string(&attestation.body).expect("attestation body is serializable");
         verify_hmac_sha256(&self.signing_key, canonical.as_bytes(), &attestation.signature)
     }
 }
@@ -429,26 +318,6 @@ mod tests {
 
     fn test_key() -> Vec<u8> {
         b"test-signing-key-for-trust-server".to_vec()
-    }
-
-    #[test]
-    fn sha256_empty() {
-        let hash = sha256(b"");
-        let hex = hex_encode(&hash);
-        assert_eq!(
-            hex,
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        );
-    }
-
-    #[test]
-    fn sha256_hello() {
-        let hash = sha256(b"hello");
-        let hex = hex_encode(&hash);
-        assert_eq!(
-            hex,
-            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-        );
     }
 
     #[test]
@@ -554,11 +423,11 @@ mod tests {
             config,
         );
 
-        assert!(!attestation.attestation_id.is_empty());
-        assert_eq!(attestation.input_guards.len(), 1);
-        assert_eq!(attestation.output_guards.len(), 1);
-        assert_eq!(attestation.input_guards[0].name, "filter-a");
-        assert_eq!(attestation.output_guards[0].name, "filter-b");
+        assert!(!attestation.body.attestation_id.is_empty());
+        assert_eq!(attestation.body.input_guards.len(), 1);
+        assert_eq!(attestation.body.output_guards.len(), 1);
+        assert_eq!(attestation.body.input_guards[0].name, "filter-a");
+        assert_eq!(attestation.body.output_guards[0].name, "filter-b");
         assert!(!attestation.signature.is_empty());
 
         // Verify with the same service
@@ -579,7 +448,7 @@ mod tests {
         let mut attestation = service.attest_guard_config(&[], &[], config.clone(), config);
 
         // Tamper with the attestation
-        attestation.input_guards.push(GuardDescriptorInfo {
+        attestation.body.input_guards.push(GuardDescriptorInfo {
             name: "injected-guard".into(),
             priority: 999,
             short_circuits: false,
@@ -631,11 +500,11 @@ mod tests {
             evals,
         );
 
-        assert!(!attestation.attestation_id.is_empty());
-        assert_eq!(attestation.request_id, "req-123");
-        assert_eq!(attestation.action_kind, ActionKind::InputEvaluation);
-        assert_eq!(attestation.verdict, "Deny");
-        assert_eq!(attestation.guard_evaluations.len(), 2);
+        assert!(!attestation.body.attestation_id.is_empty());
+        assert_eq!(attestation.body.request_id, "req-123");
+        assert_eq!(attestation.body.action_kind, ActionKind::InputEvaluation);
+        assert_eq!(attestation.body.verdict, "Deny");
+        assert_eq!(attestation.body.guard_evaluations.len(), 2);
         assert!(!attestation.signature.is_empty());
 
         assert!(service.verify_action(&attestation));
@@ -654,7 +523,7 @@ mod tests {
         );
 
         // Tamper with the verdict
-        attestation.verdict = "Permit".into();
+        attestation.body.verdict = "Permit".into();
 
         assert!(!service.verify_action(&attestation));
     }
@@ -671,8 +540,8 @@ mod tests {
             vec![],
         );
 
-        assert_eq!(attestation.action_kind, ActionKind::Adjudication);
-        assert!(attestation.guard_evaluations.is_empty());
+        assert_eq!(attestation.body.action_kind, ActionKind::Adjudication);
+        assert!(attestation.body.guard_evaluations.is_empty());
         assert!(service.verify_action(&attestation));
     }
 
@@ -707,7 +576,7 @@ mod tests {
 
         let json = serde_json::to_string(&attestation).unwrap();
         let back: GuardConfigAttestation = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.attestation_id, attestation.attestation_id);
+        assert_eq!(back.body.attestation_id, attestation.body.attestation_id);
         assert_eq!(back.signature, attestation.signature);
 
         // Verify the deserialized attestation
@@ -732,7 +601,7 @@ mod tests {
 
         let json = serde_json::to_string(&attestation).unwrap();
         let back: ActionAttestation = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.attestation_id, attestation.attestation_id);
+        assert_eq!(back.body.attestation_id, attestation.body.attestation_id);
 
         assert!(service.verify_action(&back));
     }

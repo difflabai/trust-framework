@@ -334,70 +334,58 @@ impl EvalServerHandler {
         })?;
 
         match request.action_kind {
-            ActionKind::InputEvaluation => {
+            ActionKind::InputEvaluation | ActionKind::OutputEvaluation => {
                 let eval_req = EvalRequest {
                     request_id: request.request_id.clone(),
                     payload: request.payload,
                     context: request.context,
                     metadata: Default::default(),
                 };
-                let response = self.evaluate_input(eval_req).await?;
-                let eval_records = response
-                    .evaluations
-                    .iter()
-                    .map(|e| GuardEvaluationRecord {
-                        guard_name: e["guard_name"].as_str().unwrap_or("unknown").to_string(),
-                        verdict: e["verdict"].as_str().map(|s| s.to_string()),
-                        output_kind: e["output_kind"].as_str().unwrap_or("unknown").to_string(),
-                    })
-                    .collect();
 
-                Ok(svc.attest_action(
-                    request.request_id,
-                    ActionKind::InputEvaluation,
-                    response.verdict,
-                    response.reason,
-                    eval_records,
-                ))
-            }
-            ActionKind::OutputEvaluation => {
-                let eval_req = EvalRequest {
-                    request_id: request.request_id.clone(),
-                    payload: request.payload,
-                    context: request.context,
-                    metadata: Default::default(),
+                let response = if request.action_kind == ActionKind::InputEvaluation {
+                    self.evaluate_input(eval_req).await?
+                } else {
+                    self.evaluate_output(eval_req).await?
                 };
-                let response = self.evaluate_output(eval_req).await?;
+
                 let eval_records = response
                     .evaluations
                     .iter()
-                    .map(|e| GuardEvaluationRecord {
-                        guard_name: e["guard_name"].as_str().unwrap_or("unknown").to_string(),
-                        verdict: e["verdict"].as_str().map(|s| s.to_string()),
-                        output_kind: e["output_kind"].as_str().unwrap_or("unknown").to_string(),
+                    .filter_map(|e| {
+                        serde_json::from_value::<guard_core::GuardEvaluation>(e.clone()).ok()
+                    })
+                    .map(|eval| GuardEvaluationRecord {
+                        guard_name: eval.guard_name,
+                        verdict: eval.verdict.map(|v| format!("{:?}", v)),
+                        output_kind: eval.output_kind,
                     })
                     .collect();
 
                 Ok(svc.attest_action(
                     request.request_id,
-                    ActionKind::OutputEvaluation,
+                    request.action_kind,
                     response.verdict,
                     response.reason,
                     eval_records,
                 ))
             }
             ActionKind::Adjudication => {
-                let content = request.payload["content"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
-                let raw_input = request.payload["raw_input"]
-                    .as_str()
-                    .map(|s| s.to_string());
+                #[derive(serde::Deserialize)]
+                struct AdjudicationPayload {
+                    content: String,
+                    #[serde(default)]
+                    raw_input: Option<String>,
+                }
+
+                let payload: AdjudicationPayload =
+                    serde_json::from_value(request.payload).map_err(|e| {
+                        GuardError::Internal(format!("Invalid adjudication payload: {e}"))
+                    })?;
+
                 let adj_req = AdjudicateRequest {
                     request_id: request.request_id.clone(),
-                    content,
-                    raw_input,
+                    content: payload.content,
+                    raw_input: payload.raw_input,
                     context: request.context,
                 };
                 let response = self.adjudicate(adj_req)?;
@@ -789,12 +777,12 @@ mod tests {
     fn attest_guard_config_empty_pipeline() {
         let handler = make_handler_with_attestation();
         let attestation = handler.attest_guard_config().unwrap();
-        assert!(attestation.input_guards.is_empty());
-        assert!(attestation.output_guards.is_empty());
-        assert!(!attestation.attestation_id.is_empty());
+        assert!(attestation.body.input_guards.is_empty());
+        assert!(attestation.body.output_guards.is_empty());
+        assert!(!attestation.body.attestation_id.is_empty());
         assert!(!attestation.signature.is_empty());
-        assert!(attestation.input_pipeline_config.short_circuit_on_deny);
-        assert_eq!(attestation.input_pipeline_config.max_guards, 64);
+        assert!(attestation.body.input_pipeline_config.short_circuit_on_deny);
+        assert_eq!(attestation.body.input_pipeline_config.max_guards, 64);
     }
 
     #[test]
@@ -838,9 +826,9 @@ mod tests {
             action_kind: ActionKind::InputEvaluation,
         };
         let attestation = handler.attest_action(req).await.unwrap();
-        assert_eq!(attestation.request_id, "req-att-1");
-        assert_eq!(attestation.action_kind, ActionKind::InputEvaluation);
-        assert_eq!(attestation.verdict, "Permit");
+        assert_eq!(attestation.body.request_id, "req-att-1");
+        assert_eq!(attestation.body.action_kind, ActionKind::InputEvaluation);
+        assert_eq!(attestation.body.verdict, "Permit");
         assert!(!attestation.signature.is_empty());
 
         let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
@@ -857,9 +845,9 @@ mod tests {
             action_kind: ActionKind::OutputEvaluation,
         };
         let attestation = handler.attest_action(req).await.unwrap();
-        assert_eq!(attestation.request_id, "req-att-2");
-        assert_eq!(attestation.action_kind, ActionKind::OutputEvaluation);
-        assert_eq!(attestation.verdict, "Permit");
+        assert_eq!(attestation.body.request_id, "req-att-2");
+        assert_eq!(attestation.body.action_kind, ActionKind::OutputEvaluation);
+        assert_eq!(attestation.body.verdict, "Permit");
 
         let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
         assert!(svc.verify_action(&attestation));
@@ -888,9 +876,9 @@ mod tests {
             action_kind: ActionKind::Adjudication,
         };
         let attestation = handler.attest_action(req).await.unwrap();
-        assert_eq!(attestation.request_id, "req-att-3");
-        assert_eq!(attestation.action_kind, ActionKind::Adjudication);
-        assert_eq!(attestation.verdict, "Permit");
+        assert_eq!(attestation.body.request_id, "req-att-3");
+        assert_eq!(attestation.body.action_kind, ActionKind::Adjudication);
+        assert_eq!(attestation.body.verdict, "Permit");
 
         let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
         assert!(svc.verify_action(&attestation));
@@ -916,7 +904,7 @@ mod tests {
         let mut attestation = handler.attest_action(req).await.unwrap();
 
         // Tamper with the verdict
-        attestation.verdict = "Deny".into();
+        attestation.body.verdict = "Deny".into();
 
         let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
         assert!(!svc.verify_action(&attestation));

@@ -12,8 +12,9 @@ pub mod warning;
 
 // --- Attestation re-exports ---
 pub use attestation::{
-    ActionAttestation, ActionKind, AttestationService, GuardConfigAttestation,
-    GuardDescriptorInfo, GuardEvaluationRecord, PipelineConfigInfo,
+    ActionAttestation, ActionAttestationBody, ActionKind, AttestationService,
+    GuardConfigAttestation, GuardConfigAttestationBody, GuardDescriptorInfo,
+    GuardEvaluationRecord, PipelineConfigInfo,
 };
 
 // --- Existing re-exports ---

@@ -102,23 +102,25 @@ impl EvalTransport for NoopTransport {
     async fn attest_guard_config(&self) -> Result<GuardConfigAttestation, GuardError> {
         // Noop transport produces an unsigned, empty attestation.
         Ok(GuardConfigAttestation {
-            attestation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp: chrono::Utc::now(),
-            input_guards: vec![],
-            output_guards: vec![],
-            input_pipeline_config: guard_core::PipelineConfigInfo {
-                short_circuit_on_deny: true,
-                timeout_secs: 30.0,
-                timeout_verdict: "Deny".into(),
-                continuation_timeout_secs: 10.0,
-                max_guards: 64,
-            },
-            output_pipeline_config: guard_core::PipelineConfigInfo {
-                short_circuit_on_deny: true,
-                timeout_secs: 30.0,
-                timeout_verdict: "Deny".into(),
-                continuation_timeout_secs: 10.0,
-                max_guards: 64,
+            body: guard_core::attestation::GuardConfigAttestationBody {
+                attestation_id: uuid::Uuid::new_v4().to_string(),
+                timestamp: chrono::Utc::now(),
+                input_guards: vec![],
+                output_guards: vec![],
+                input_pipeline_config: guard_core::PipelineConfigInfo {
+                    short_circuit_on_deny: true,
+                    timeout_secs: 30.0,
+                    timeout_verdict: "Deny".into(),
+                    continuation_timeout_secs: 10.0,
+                    max_guards: 64,
+                },
+                output_pipeline_config: guard_core::PipelineConfigInfo {
+                    short_circuit_on_deny: true,
+                    timeout_secs: 30.0,
+                    timeout_verdict: "Deny".into(),
+                    continuation_timeout_secs: 10.0,
+                    max_guards: 64,
+                },
             },
             signature: String::new(),
         })
@@ -129,13 +131,15 @@ impl EvalTransport for NoopTransport {
         request: AttestActionRequest,
     ) -> Result<ActionAttestation, GuardError> {
         Ok(ActionAttestation {
-            attestation_id: uuid::Uuid::new_v4().to_string(),
-            timestamp: chrono::Utc::now(),
-            request_id: request.request_id,
-            action_kind: request.action_kind,
-            verdict: "Permit".into(),
-            reason: "noop transport: auto-permit".into(),
-            guard_evaluations: vec![],
+            body: guard_core::attestation::ActionAttestationBody {
+                attestation_id: uuid::Uuid::new_v4().to_string(),
+                timestamp: chrono::Utc::now(),
+                request_id: request.request_id,
+                action_kind: request.action_kind,
+                verdict: "Permit".into(),
+                reason: "noop transport: auto-permit".into(),
+                guard_evaluations: vec![],
+            },
             signature: String::new(),
         })
     }
