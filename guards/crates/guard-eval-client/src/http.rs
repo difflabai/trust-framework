@@ -1,10 +1,11 @@
 use async_trait::async_trait;
-use guard_core::GuardError;
+use guard_core::{ActionAttestation, GuardConfigAttestation, GuardError};
 use reqwest::Client;
 
 use crate::transport::EvalTransport;
 use crate::types::{
-    EvaluateRequest, EvaluateResponse, LogAck, LogEvent, QuarantineResolution, QuarantineStatus,
+    AttestActionRequest, EvaluateRequest, EvaluateResponse, LogAck, LogEvent,
+    QuarantineResolution, QuarantineStatus,
 };
 
 /// HTTP-based transport for the evaluation server.
@@ -136,5 +137,47 @@ impl EvalTransport for HttpTransport {
             .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
 
         Ok(status)
+    }
+
+    async fn attest_guard_config(&self) -> Result<GuardConfigAttestation, GuardError> {
+        let url = format!("{}/v1/attestation/guards", self.base_url);
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?
+            .error_for_status()
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
+
+        let attestation: GuardConfigAttestation = resp
+            .json()
+            .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
+
+        Ok(attestation)
+    }
+
+    async fn attest_action(
+        &self,
+        request: AttestActionRequest,
+    ) -> Result<ActionAttestation, GuardError> {
+        let url = format!("{}/v1/attestation/action", self.base_url);
+        let resp = self
+            .client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?
+            .error_for_status()
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
+
+        let attestation: ActionAttestation = resp
+            .json()
+            .await
+            .map_err(|e| GuardError::EvalServerConnection(e.to_string()))?;
+
+        Ok(attestation)
     }
 }

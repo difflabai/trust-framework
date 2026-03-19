@@ -86,3 +86,17 @@ pub struct QuarantineResolution {
     /// Reason for the resolution.
     pub reason: String,
 }
+
+/// Request for an action attestation from the trust server.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttestActionRequest {
+    /// Unique request identifier.
+    pub request_id: String,
+    /// The payload to evaluate.
+    pub payload: serde_json::Value,
+    /// Optional context for evaluation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<serde_json::Value>,
+    /// The kind of action to evaluate and attest.
+    pub action_kind: guard_core::ActionKind,
+}

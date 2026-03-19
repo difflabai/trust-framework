@@ -131,6 +131,16 @@ impl GuardPipeline {
         self.guards.is_empty()
     }
 
+    /// Return descriptors for all guards in the pipeline.
+    pub fn guard_descriptors(&self) -> Vec<&crate::guard::GuardDescriptor> {
+        self.guards.iter().map(|g| g.descriptor()).collect()
+    }
+
+    /// Return a reference to the pipeline configuration.
+    pub fn config(&self) -> &PipelineConfig {
+        &self.config
+    }
+
     /// Execute the pipeline against a payload and context.
     ///
     /// Execution flow:

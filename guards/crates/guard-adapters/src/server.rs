@@ -12,8 +12,10 @@ use std::sync::Arc;
 
 use adjudicator::BehaviorAdjudicator;
 use guard_core::{
-    GuardContext, GuardError, GuardLayer, InputGuards, JsonPayload, OperatingContext, OutputGuards,
-    PipelineResult, QuarantineManager, RequestMeta,
+    ActionAttestation, ActionKind, AttestationService, GuardConfigAttestation,
+    GuardContext, GuardError, GuardEvaluationRecord, GuardLayer, InputGuards, JsonPayload,
+    OperatingContext, OutputGuards, PipelineConfigInfo, PipelineResult, QuarantineManager,
+    RequestMeta,
 };
 
 use crate::adjudicator_guard::{adj_context_from_guard, guard_risk_from_adj, guard_verdict_from_adj};
@@ -134,6 +136,16 @@ impl AdjudicateResponse {
     }
 }
 
+/// Request body for action attestation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionAttestationRequest {
+    pub request_id: String,
+    pub payload: serde_json::Value,
+    #[serde(default)]
+    pub context: Option<serde_json::Value>,
+    pub action_kind: ActionKind,
+}
+
 /// The server-side handler that processes evaluation requests.
 ///
 /// This is the core logic; actual HTTP server integration (e.g. with
@@ -143,6 +155,7 @@ pub struct EvalServerHandler {
     output_guards: Arc<OutputGuards>,
     quarantine_manager: Option<Arc<QuarantineManager>>,
     adjudicator: Option<Arc<BehaviorAdjudicator>>,
+    attestation_service: Option<Arc<AttestationService>>,
 }
 
 impl EvalServerHandler {
@@ -156,6 +169,7 @@ impl EvalServerHandler {
             output_guards,
             quarantine_manager,
             adjudicator: None,
+            attestation_service: None,
         }
     }
 
@@ -171,7 +185,14 @@ impl EvalServerHandler {
             output_guards,
             quarantine_manager,
             adjudicator: Some(adjudicator),
+            attestation_service: None,
         }
+    }
+
+    /// Enable attestation support with the given signing key.
+    pub fn with_attestation(mut self, signing_key: Vec<u8>) -> Self {
+        self.attestation_service = Some(Arc::new(AttestationService::new(signing_key)));
+        self
     }
 
     /// POST /v1/evaluate/input
@@ -277,6 +298,121 @@ impl EvalServerHandler {
             .map_err(|e| GuardError::Internal(format!("Guard build failed: {e}")))
     }
 
+    /// GET /v1/attestation/guards
+    ///
+    /// Produces a signed attestation of the current guard configuration,
+    /// proving which input and output guards are loaded.
+    pub fn attest_guard_config(&self) -> Result<GuardConfigAttestation, GuardError> {
+        let svc = self.attestation_service.as_ref().ok_or_else(|| {
+            GuardError::Internal("Attestation not enabled".into())
+        })?;
+
+        let input_descs = self.input_guards.pipeline.guard_descriptors();
+        let output_descs = self.output_guards.pipeline.guard_descriptors();
+
+        let input_config = pipeline_config_info(self.input_guards.pipeline.config());
+        let output_config = pipeline_config_info(self.output_guards.pipeline.config());
+
+        Ok(svc.attest_guard_config(
+            &input_descs,
+            &output_descs,
+            input_config,
+            output_config,
+        ))
+    }
+
+    /// POST /v1/attestation/action
+    ///
+    /// Evaluates the action through the appropriate pipeline and returns
+    /// a signed attestation of the verdict.
+    pub async fn attest_action(
+        &self,
+        request: ActionAttestationRequest,
+    ) -> Result<ActionAttestation, GuardError> {
+        let svc = self.attestation_service.as_ref().ok_or_else(|| {
+            GuardError::Internal("Attestation not enabled".into())
+        })?;
+
+        match request.action_kind {
+            ActionKind::InputEvaluation => {
+                let eval_req = EvalRequest {
+                    request_id: request.request_id.clone(),
+                    payload: request.payload,
+                    context: request.context,
+                    metadata: Default::default(),
+                };
+                let response = self.evaluate_input(eval_req).await?;
+                let eval_records = response
+                    .evaluations
+                    .iter()
+                    .map(|e| GuardEvaluationRecord {
+                        guard_name: e["guard_name"].as_str().unwrap_or("unknown").to_string(),
+                        verdict: e["verdict"].as_str().map(|s| s.to_string()),
+                        output_kind: e["output_kind"].as_str().unwrap_or("unknown").to_string(),
+                    })
+                    .collect();
+
+                Ok(svc.attest_action(
+                    request.request_id,
+                    ActionKind::InputEvaluation,
+                    response.verdict,
+                    response.reason,
+                    eval_records,
+                ))
+            }
+            ActionKind::OutputEvaluation => {
+                let eval_req = EvalRequest {
+                    request_id: request.request_id.clone(),
+                    payload: request.payload,
+                    context: request.context,
+                    metadata: Default::default(),
+                };
+                let response = self.evaluate_output(eval_req).await?;
+                let eval_records = response
+                    .evaluations
+                    .iter()
+                    .map(|e| GuardEvaluationRecord {
+                        guard_name: e["guard_name"].as_str().unwrap_or("unknown").to_string(),
+                        verdict: e["verdict"].as_str().map(|s| s.to_string()),
+                        output_kind: e["output_kind"].as_str().unwrap_or("unknown").to_string(),
+                    })
+                    .collect();
+
+                Ok(svc.attest_action(
+                    request.request_id,
+                    ActionKind::OutputEvaluation,
+                    response.verdict,
+                    response.reason,
+                    eval_records,
+                ))
+            }
+            ActionKind::Adjudication => {
+                let content = request.payload["content"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+                let raw_input = request.payload["raw_input"]
+                    .as_str()
+                    .map(|s| s.to_string());
+                let adj_req = AdjudicateRequest {
+                    request_id: request.request_id.clone(),
+                    content,
+                    raw_input,
+                    context: request.context,
+                };
+                let response = self.adjudicate(adj_req)?;
+
+                Ok(svc.attest_action(
+                    request.request_id,
+                    ActionKind::Adjudication,
+                    response.verdict,
+                    response.reason,
+                    vec![],
+                ))
+            }
+        }
+    }
+
     /// POST /v1/quarantine/:id
     pub async fn resolve_quarantine(
         &self,
@@ -291,6 +427,16 @@ impl EvalServerHandler {
             .resolve(ticket_id, request.approved, request.reviewer, request.reason)
             .await?;
         serde_json::to_value(&state).map_err(GuardError::from)
+    }
+}
+
+fn pipeline_config_info(config: &guard_core::PipelineConfig) -> PipelineConfigInfo {
+    PipelineConfigInfo {
+        short_circuit_on_deny: config.short_circuit_on_deny,
+        timeout_secs: config.timeout.as_secs_f64(),
+        timeout_verdict: format!("{:?}", config.timeout_verdict),
+        continuation_timeout_secs: config.continuation_timeout.as_secs_f64(),
+        max_guards: config.max_guards,
     }
 }
 
@@ -615,5 +761,164 @@ mod tests {
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("Permit"));
         assert!(!json.contains("modified_output"));
+    }
+
+    // -- Attestation endpoint tests --
+
+    fn make_handler_with_attestation() -> EvalServerHandler {
+        let input = Arc::new(InputGuards::new(
+            GuardPipeline::new(PipelineConfig::default()),
+            Box::new(NoopLogger),
+        ));
+        let output = Arc::new(OutputGuards::new(
+            GuardPipeline::new(PipelineConfig::default()),
+            Box::new(NoopLogger),
+        ));
+        EvalServerHandler::new(input, output, None)
+            .with_attestation(b"test-attestation-key".to_vec())
+    }
+
+    #[test]
+    fn attest_guard_config_not_enabled() {
+        let handler = make_handler();
+        let result = handler.attest_guard_config();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn attest_guard_config_empty_pipeline() {
+        let handler = make_handler_with_attestation();
+        let attestation = handler.attest_guard_config().unwrap();
+        assert!(attestation.input_guards.is_empty());
+        assert!(attestation.output_guards.is_empty());
+        assert!(!attestation.attestation_id.is_empty());
+        assert!(!attestation.signature.is_empty());
+        assert!(attestation.input_pipeline_config.short_circuit_on_deny);
+        assert_eq!(attestation.input_pipeline_config.max_guards, 64);
+    }
+
+    #[test]
+    fn attest_guard_config_signature_verifies() {
+        let handler = make_handler_with_attestation();
+        let attestation = handler.attest_guard_config().unwrap();
+
+        let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
+        assert!(svc.verify_guard_config(&attestation));
+    }
+
+    #[test]
+    fn attest_guard_config_wrong_key_fails() {
+        let handler = make_handler_with_attestation();
+        let attestation = handler.attest_guard_config().unwrap();
+
+        let svc = guard_core::AttestationService::new(b"wrong-key".to_vec());
+        assert!(!svc.verify_guard_config(&attestation));
+    }
+
+    #[tokio::test]
+    async fn attest_action_not_enabled() {
+        let handler = make_handler();
+        let req = ActionAttestationRequest {
+            request_id: "r1".into(),
+            payload: serde_json::json!({"content": "hello"}),
+            context: None,
+            action_kind: ActionKind::InputEvaluation,
+        };
+        let result = handler.attest_action(req).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn attest_action_input_evaluation() {
+        let handler = make_handler_with_attestation();
+        let req = ActionAttestationRequest {
+            request_id: "req-att-1".into(),
+            payload: serde_json::json!({"content": "hello world"}),
+            context: None,
+            action_kind: ActionKind::InputEvaluation,
+        };
+        let attestation = handler.attest_action(req).await.unwrap();
+        assert_eq!(attestation.request_id, "req-att-1");
+        assert_eq!(attestation.action_kind, ActionKind::InputEvaluation);
+        assert_eq!(attestation.verdict, "Permit");
+        assert!(!attestation.signature.is_empty());
+
+        let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
+        assert!(svc.verify_action(&attestation));
+    }
+
+    #[tokio::test]
+    async fn attest_action_output_evaluation() {
+        let handler = make_handler_with_attestation();
+        let req = ActionAttestationRequest {
+            request_id: "req-att-2".into(),
+            payload: serde_json::json!({"content": "response text"}),
+            context: None,
+            action_kind: ActionKind::OutputEvaluation,
+        };
+        let attestation = handler.attest_action(req).await.unwrap();
+        assert_eq!(attestation.request_id, "req-att-2");
+        assert_eq!(attestation.action_kind, ActionKind::OutputEvaluation);
+        assert_eq!(attestation.verdict, "Permit");
+
+        let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
+        assert!(svc.verify_action(&attestation));
+    }
+
+    #[tokio::test]
+    async fn attest_action_adjudication() {
+        let input = Arc::new(InputGuards::new(
+            GuardPipeline::new(PipelineConfig::default()),
+            Box::new(NoopLogger),
+        ));
+        let output = Arc::new(OutputGuards::new(
+            GuardPipeline::new(PipelineConfig::default()),
+            Box::new(NoopLogger),
+        ));
+        let adj = Arc::new(adjudicator::BehaviorAdjudicator::default());
+        let handler = EvalServerHandler::with_adjudicator(input, output, None, adj)
+            .with_attestation(b"test-attestation-key".to_vec());
+
+        let req = ActionAttestationRequest {
+            request_id: "req-att-3".into(),
+            payload: serde_json::json!({
+                "content": "The sky is blue.",
+            }),
+            context: None,
+            action_kind: ActionKind::Adjudication,
+        };
+        let attestation = handler.attest_action(req).await.unwrap();
+        assert_eq!(attestation.request_id, "req-att-3");
+        assert_eq!(attestation.action_kind, ActionKind::Adjudication);
+        assert_eq!(attestation.verdict, "Permit");
+
+        let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
+        assert!(svc.verify_action(&attestation));
+    }
+
+    #[test]
+    fn action_attestation_request_deserialize() {
+        let json = r#"{"request_id":"r1","payload":{"content":"hi"},"action_kind":"input_evaluation"}"#;
+        let req: ActionAttestationRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.request_id, "r1");
+        assert_eq!(req.action_kind, ActionKind::InputEvaluation);
+    }
+
+    #[tokio::test]
+    async fn attest_action_tampered_verdict_fails_verification() {
+        let handler = make_handler_with_attestation();
+        let req = ActionAttestationRequest {
+            request_id: "req-tamper".into(),
+            payload: serde_json::json!({"content": "hello"}),
+            context: None,
+            action_kind: ActionKind::InputEvaluation,
+        };
+        let mut attestation = handler.attest_action(req).await.unwrap();
+
+        // Tamper with the verdict
+        attestation.verdict = "Deny".into();
+
+        let svc = guard_core::AttestationService::new(b"test-attestation-key".to_vec());
+        assert!(!svc.verify_action(&attestation));
     }
 }

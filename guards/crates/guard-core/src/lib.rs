@@ -1,3 +1,4 @@
+pub mod attestation;
 pub mod config;
 pub mod context;
 pub mod error;
@@ -8,6 +9,12 @@ pub mod pipeline;
 pub mod quarantine;
 pub mod verdict;
 pub mod warning;
+
+// --- Attestation re-exports ---
+pub use attestation::{
+    ActionAttestation, ActionKind, AttestationService, GuardConfigAttestation,
+    GuardDescriptorInfo, GuardEvaluationRecord, PipelineConfigInfo,
+};
 
 // --- Existing re-exports ---
 pub use context::{GuardContext, OperatingContext, RequestMeta};
