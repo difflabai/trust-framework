@@ -18,6 +18,7 @@ guard-eval-client = { path = "../guard-eval-client" }
 guard-plugins = { path = "../guard-plugins" }
 adjudicator = { path = "../../../adjudicator" }
 toml = { workspace = true }
+ledger = { path = "../../../ledger" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

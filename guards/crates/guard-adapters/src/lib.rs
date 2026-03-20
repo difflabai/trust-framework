@@ -20,6 +20,6 @@ pub use hooks::{
 };
 pub use mcp::{McpError, McpGuardMiddleware, McpRequest, McpResponse, McpTransport};
 pub use server::{
-    AdjudicateRequest, AdjudicateResponse, EvalRequest, EvalResponse, EvalServerHandler,
-    QuarantineResolveRequest,
+    ActionAttestationRequest, AdjudicateRequest, AdjudicateResponse, EvalRequest, EvalResponse,
+    EvalServerHandler, QuarantineResolveRequest,
 };

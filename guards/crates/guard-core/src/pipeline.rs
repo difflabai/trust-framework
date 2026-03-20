@@ -39,7 +39,7 @@ impl Default for PipelineConfig {
 }
 
 /// Record of a single guard's evaluation within the pipeline.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GuardEvaluation {
     /// Name of the guard that was evaluated.
     pub guard_name: String,
@@ -129,6 +129,16 @@ impl GuardPipeline {
     /// Return true if the pipeline has no guards.
     pub fn is_empty(&self) -> bool {
         self.guards.is_empty()
+    }
+
+    /// Return descriptors for all guards in the pipeline.
+    pub fn guard_descriptors(&self) -> Vec<&crate::guard::GuardDescriptor> {
+        self.guards.iter().map(|g| g.descriptor()).collect()
+    }
+
+    /// Return a reference to the pipeline configuration.
+    pub fn config(&self) -> &PipelineConfig {
+        &self.config
     }
 
     /// Execute the pipeline against a payload and context.
