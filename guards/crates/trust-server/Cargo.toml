@@ -1,0 +1,22 @@
+[package]
+name = "trust-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "trust-server"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
+toml = { workspace = true }
+guard-core = { path = "../guard-core" }
+guard-adapters = { path = "../guard-adapters" }
+adjudicator = { path = "../../../adjudicator" }

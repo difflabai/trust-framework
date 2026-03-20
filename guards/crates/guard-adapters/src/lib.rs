@@ -1,6 +1,7 @@
 pub mod adjudicator_guard;
 pub mod builder;
 pub mod file_sharing_guard;
+pub mod guard_factory;
 pub mod hooks;
 pub mod mcp;
 pub mod prompt_bonk_guard;
@@ -9,6 +10,7 @@ pub mod server;
 pub use adjudicator_guard::AdjudicatorGuard;
 pub use file_sharing_guard::FileSharingGuard;
 pub use prompt_bonk_guard::{PromptBonkConfig, PromptBonkGuard};
+pub use guard_factory::GuardFactoryError;
 pub use builder::{
     BuildApproach, EvalCase, ExampleSet, FactMapping, GuardBuildRequest, GuardBuildResponse,
     GuardType, PrologSpec, RegexSpec, build_guard,

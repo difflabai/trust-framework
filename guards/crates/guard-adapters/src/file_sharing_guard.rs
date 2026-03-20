@@ -164,6 +164,10 @@ impl FileSharingGuard {
             },
         }
     }
+
+    pub fn with_descriptor(descriptor: GuardDescriptor) -> Self {
+        Self { descriptor }
+    }
 }
 
 impl Default for FileSharingGuard {
