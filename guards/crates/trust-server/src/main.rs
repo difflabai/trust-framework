@@ -126,7 +126,7 @@ async fn adjudicate(
     State(handler): State<AppState>,
     Json(request): Json<AdjudicateRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    let resp = handler.adjudicate(request)?;
+    let resp = handler.adjudicate(request).await?;
     Ok(Json(resp))
 }
 
