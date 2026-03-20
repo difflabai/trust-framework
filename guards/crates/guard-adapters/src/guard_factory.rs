@@ -10,6 +10,21 @@ use crate::{FileSharingGuard, PromptBonkGuard, PromptBonkConfig};
 use guard_core::{Guard, GuardDescriptor, GuardPipeline, InputGuards, NoopLogger, OutputGuards, PipelineConfig};
 use serde::Deserialize;
 
+/// Errors that can occur when loading or building guards from configuration.
+#[derive(Debug, thiserror::Error)]
+pub enum GuardFactoryError {
+    #[error("failed to read config file: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("failed to parse TOML config: {0}")]
+    Toml(#[from] toml::de::Error),
+    #[error("unknown guard: {0}")]
+    UnknownGuard(String),
+    #[error("invalid config for guard '{guard}': {message}")]
+    InvalidGuardConfig { guard: String, message: String },
+    #[error("pipeline error: {0}")]
+    Pipeline(String),
+}
+
 /// Top-level guards configuration file.
 #[derive(Debug, Deserialize, Default)]
 pub struct GuardsConfig {
@@ -33,8 +48,16 @@ pub struct GuardEntry {
     pub config: toml::Table,
 }
 
+/// Partial config for prompt-bonk guard, deserialized via serde.
+#[derive(Debug, Deserialize, Default)]
+struct PromptBonkPartialConfig {
+    threshold: Option<f64>,
+    binary_path: Option<String>,
+    fast: Option<bool>,
+}
+
 /// Parse a guards config file.
-pub fn load_config(path: &Path) -> Result<GuardsConfig, Box<dyn std::error::Error>> {
+pub fn load_config(path: &Path) -> Result<GuardsConfig, GuardFactoryError> {
     let content = std::fs::read_to_string(path)?;
     let config: GuardsConfig = toml::from_str(&content)?;
     Ok(config)
@@ -43,17 +66,21 @@ pub fn load_config(path: &Path) -> Result<GuardsConfig, Box<dyn std::error::Erro
 /// Build input and output guard pipelines from a config.
 pub fn build_pipelines(
     config: &GuardsConfig,
-) -> Result<(Arc<InputGuards>, Arc<OutputGuards>), Box<dyn std::error::Error>> {
+) -> Result<(Arc<InputGuards>, Arc<OutputGuards>), GuardFactoryError> {
     let mut input_pipeline = GuardPipeline::new(PipelineConfig::default());
     for entry in &config.input_guards {
         let guard = create_guard(entry)?;
-        input_pipeline.add_guard(guard)?;
+        input_pipeline
+            .add_guard(guard)
+            .map_err(|e| GuardFactoryError::Pipeline(e.to_string()))?;
     }
 
     let mut output_pipeline = GuardPipeline::new(PipelineConfig::default());
     for entry in &config.output_guards {
         let guard = create_guard(entry)?;
-        output_pipeline.add_guard(guard)?;
+        output_pipeline
+            .add_guard(guard)
+            .map_err(|e| GuardFactoryError::Pipeline(e.to_string()))?;
     }
 
     Ok((
@@ -63,24 +90,25 @@ pub fn build_pipelines(
 }
 
 /// Instantiate a guard by name from its config entry.
-fn create_guard(entry: &GuardEntry) -> Result<Box<dyn Guard>, Box<dyn std::error::Error>> {
+fn create_guard(entry: &GuardEntry) -> Result<Box<dyn Guard>, GuardFactoryError> {
     match entry.name.as_str() {
         "prompt-bonk" => {
+            let partial: PromptBonkPartialConfig =
+                toml::Value::Table(entry.config.clone())
+                    .try_into()
+                    .map_err(|e: toml::de::Error| GuardFactoryError::InvalidGuardConfig {
+                        guard: "prompt-bonk".into(),
+                        message: e.to_string(),
+                    })?;
             let mut pb_config = PromptBonkConfig::default();
-            if let Some(v) = entry.config.get("threshold") {
-                if let Some(f) = v.as_float() {
-                    pb_config.threshold = f;
-                }
+            if let Some(threshold) = partial.threshold {
+                pb_config.threshold = threshold;
             }
-            if let Some(v) = entry.config.get("binary_path") {
-                if let Some(s) = v.as_str() {
-                    pb_config.binary_path = s.to_string();
-                }
+            if let Some(binary_path) = partial.binary_path {
+                pb_config.binary_path = binary_path;
             }
-            if let Some(v) = entry.config.get("fast") {
-                if let Some(b) = v.as_bool() {
-                    pb_config.fast = b;
-                }
+            if let Some(fast) = partial.fast {
+                pb_config.fast = fast;
             }
             let guard = if let Some(priority) = entry.priority {
                 let descriptor = GuardDescriptor {
@@ -96,10 +124,20 @@ fn create_guard(entry: &GuardEntry) -> Result<Box<dyn Guard>, Box<dyn std::error
             Ok(Box::new(guard))
         }
         "file-sharing" => {
-            let guard = FileSharingGuard::new();
+            let guard = if let Some(priority) = entry.priority {
+                let descriptor = GuardDescriptor {
+                    name: "file-sharing-permissions".into(),
+                    priority,
+                    short_circuits: true,
+                    domains: None,
+                };
+                FileSharingGuard::with_descriptor(descriptor)
+            } else {
+                FileSharingGuard::new()
+            };
             Ok(Box::new(guard))
         }
-        other => Err(format!("unknown guard: {other}").into()),
+        other => Err(GuardFactoryError::UnknownGuard(other.to_string())),
     }
 }
 
@@ -164,13 +202,26 @@ name = "file-sharing"
     }
 
     #[test]
+    fn create_file_sharing_guard_with_priority() {
+        let entry = GuardEntry {
+            name: "file-sharing".into(),
+            priority: Some(50),
+            config: toml::Table::new(),
+        };
+        let guard = create_guard(&entry).unwrap();
+        assert_eq!(guard.descriptor().name, "file-sharing-permissions");
+        assert_eq!(guard.descriptor().priority, 50);
+    }
+
+    #[test]
     fn unknown_guard_returns_error() {
         let entry = GuardEntry {
             name: "nonexistent".into(),
             priority: None,
             config: toml::Table::new(),
         };
-        assert!(create_guard(&entry).is_err());
+        let result = create_guard(&entry);
+        assert!(matches!(result, Err(GuardFactoryError::UnknownGuard(_))));
     }
 
     #[test]
@@ -189,5 +240,18 @@ name = "file-sharing"
         };
         let (input, output) = build_pipelines(&config).unwrap();
         let _ = (input, output);
+    }
+
+    #[test]
+    fn invalid_prompt_bonk_config_returns_error() {
+        let mut config = toml::Table::new();
+        config.insert("threshold".into(), toml::Value::String("not_a_float".into()));
+        let entry = GuardEntry {
+            name: "prompt-bonk".into(),
+            priority: None,
+            config,
+        };
+        let result = create_guard(&entry);
+        assert!(matches!(result, Err(GuardFactoryError::InvalidGuardConfig { .. })));
     }
 }

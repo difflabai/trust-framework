@@ -14,6 +14,7 @@ use guard_adapters::GuardBuildRequest;
 use guard_adapters::server::{
     AdjudicateRequest, EvalRequest, EvalServerHandler, QuarantineResolveRequest,
 };
+use guard_core::error::GuardError;
 
 #[derive(Parser)]
 #[command(name = "trust-server", about = "Trust-framework evaluation server")]
@@ -32,6 +33,31 @@ struct Cli {
 }
 
 type AppState = Arc<EvalServerHandler>;
+
+/// Centralized error type for axum handlers that maps `GuardError` variants
+/// to appropriate HTTP status codes.
+struct AppError(GuardError);
+
+impl From<GuardError> for AppError {
+    fn from(inner: GuardError) -> Self {
+        Self(inner)
+    }
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, message) = match &self.0 {
+            GuardError::QuarantineNotFound(id) => {
+                (StatusCode::NOT_FOUND, format!("Quarantine ticket not found: {id}"))
+            }
+            GuardError::QuarantineAlreadyResolved(id) => {
+                (StatusCode::CONFLICT, format!("Quarantine ticket already resolved: {id}"))
+            }
+            e => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        };
+        (status, message).into_response()
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -83,62 +109,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn evaluate_input(
     State(handler): State<AppState>,
     Json(request): Json<EvalRequest>,
-) -> impl IntoResponse {
-    match handler.evaluate_input(request).await {
-        Ok(resp) => Json(resp).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
+) -> Result<impl IntoResponse, AppError> {
+    let resp = handler.evaluate_input(request).await?;
+    Ok(Json(resp))
 }
 
 async fn evaluate_output(
     State(handler): State<AppState>,
     Json(request): Json<EvalRequest>,
-) -> impl IntoResponse {
-    match handler.evaluate_output(request).await {
-        Ok(resp) => Json(resp).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
+) -> Result<impl IntoResponse, AppError> {
+    let resp = handler.evaluate_output(request).await?;
+    Ok(Json(resp))
 }
 
 async fn adjudicate(
     State(handler): State<AppState>,
     Json(request): Json<AdjudicateRequest>,
-) -> impl IntoResponse {
-    match handler.adjudicate(request) {
-        Ok(resp) => Json(resp).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
+) -> Result<impl IntoResponse, AppError> {
+    let resp = handler.adjudicate(request)?;
+    Ok(Json(resp))
 }
 
 async fn get_quarantine(
     State(handler): State<AppState>,
     Path(id): Path<String>,
-) -> impl IntoResponse {
-    match handler.get_quarantine(&id).await {
-        Ok(resp) => Json(resp).into_response(),
-        Err(e) => (StatusCode::NOT_FOUND, e.to_string()).into_response(),
-    }
+) -> Result<impl IntoResponse, AppError> {
+    let resp = handler.get_quarantine(&id).await?;
+    Ok(Json(resp))
 }
 
 async fn resolve_quarantine(
     State(handler): State<AppState>,
     Path(id): Path<String>,
     Json(request): Json<QuarantineResolveRequest>,
-) -> impl IntoResponse {
-    match handler.resolve_quarantine(&id, request).await {
-        Ok(resp) => Json(resp).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
+) -> Result<impl IntoResponse, AppError> {
+    let resp = handler.resolve_quarantine(&id, request).await?;
+    Ok(Json(resp))
 }
 
 async fn build_guard(
     State(handler): State<AppState>,
     Json(request): Json<GuardBuildRequest>,
-) -> impl IntoResponse {
-    match handler.build_guard(request) {
-        Ok(resp) => Json(resp).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    }
+) -> Result<impl IntoResponse, AppError> {
+    let resp = handler.build_guard(request)?;
+    Ok(Json(resp))
 }
 
 async fn health() -> impl IntoResponse {
