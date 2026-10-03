@@ -30,6 +30,10 @@ sarajevo/
 │       ├── guard-eval-client/    # HTTP client for remote evaluation
 │       ├── guard-plugins/        # Pluggable backends (Prolog, FFI)
 │       └── trust-proxy/          # Sidecar reverse proxy for agent guard enforcement
+├── contracts/
+│   └── approval/                 # NEAR action-approval contract
+│       ├── core/                 # approval-core: dependency-free state machine
+│       └── contract/             # approval-contract: near-sdk shell, events, views
 └── Architecture.md               # This file
 ```
 
@@ -205,3 +209,23 @@ The `openclaw` and `ironclaw` modes parse agent-specific message formats to extr
 - **Kubernetes** — deploy as a sidecar container with a NetworkPolicy restricting agent egress
 
 See `guards/crates/trust-proxy/README.md` for full deployment examples and configuration details.
+
+## On-chain Approval Contract (`contracts/approval`)
+
+A NEAR contract that gives agent actions a public, verifiable human (or
+agent) sign-off. An agent calls `request_action` signed with its registered
+key, and the contract emits `approval_requested`. An approver calls `approve`
+signed with its own key, and the contract emits `action_approved`. Each
+approval is an immutable proof readable by request (`get_approval`) or as a
+paged log (`get_approvals`).
+
+All logic lives in `approval-core`, a dependency-free state machine generic
+over account and key types. The near-sdk crate is a thin shell over it, so the
+code that tests and formal verification exercise is the code deployed
+on-chain. Authorization is per signing key (`env::signer_account_pk`) bound to
+an account, calls must come from the signing account itself (no relaying),
+an approval restates the action it approves, an approver can't approve its
+own account's requests, revoking an agent key permanently voids its pending
+requests, and each agent key may hold at most 16 pending requests. See
+`contracts/approval/README.md` for the API, event schema, and the checks an
+off-chain verifier must make.

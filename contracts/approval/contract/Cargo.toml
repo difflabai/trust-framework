@@ -1,0 +1,16 @@
+[package]
+name = "approval-contract"
+version = "0.1.0"
+edition = "2021"
+description = "NEAR contract recording agent action requests and approver sign-offs as public proofs"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+approval-core = { path = "../core", features = ["borsh"] }
+near-sdk = "5.29"
+
+[dev-dependencies]
+near-sdk = { version = "5.29", features = ["unit-testing"] }
