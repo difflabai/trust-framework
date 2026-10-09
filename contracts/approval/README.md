@@ -228,7 +228,9 @@ limit of 65535 (`ulimit -n`); GitHub's runners allow it.
 
 CI (`.github/workflows/approval-contract.yml`) runs fmt, clippy, the unit
 tests, the reproducible build (publishing its SHA-256 and the wasm as an
-artifact) and the sandbox tests against that exact wasm.
+artifact) and the sandbox tests against that exact wasm. Every action is
+pinned to a commit SHA, and the cargo-near binary is checked against a
+committed SHA-256 before it runs.
 
 Still not covered: calls relayed through a third-party contract (the
 `IndirectCall` guard is unit-tested against the mocked runtime only).

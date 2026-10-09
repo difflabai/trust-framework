@@ -22,6 +22,8 @@ env:
   CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: "1.97.0"
   CARGO_NEAR_VERSION: "0.22.0"
+  # sha256 of cargo-near-x86_64-unknown-linux-gnu.tar.gz for that release.
+  CARGO_NEAR_SHA256: "9429064e30a427e96523f539cb255f3688d2345e5000d7d4e4873a8247247d1a"
 
 defaults:
   run:
@@ -32,12 +34,12 @@ jobs:
     name: fmt, clippy, unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: contracts/approval
       - run: cargo fmt --all --check
@@ -52,13 +54,21 @@ jobs:
     steps:
       # Build the PR head commit itself (not the merge commit), so the
       # recorded source snapshot is a commit that exists on a branch.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      # Fetch the release binary and check it against a committed hash
+      # rather than piping the installer script into sh. Bump the hash
+      # together with CARGO_NEAR_VERSION.
       - name: Install cargo-near
+        working-directory: ${{ runner.temp }}
         run: |
-          curl --proto '=https' --tlsv1.2 -LsSf \
-            "https://github.com/near/cargo-near/releases/download/cargo-near-v${CARGO_NEAR_VERSION}/cargo-near-installer.sh" | sh
+          tarball=cargo-near-x86_64-unknown-linux-gnu.tar.gz
+          curl --proto '=https' --tlsv1.2 -LsSfO \
+            "https://github.com/near/cargo-near/releases/download/cargo-near-v${CARGO_NEAR_VERSION}/${tarball}"
+          echo "${CARGO_NEAR_SHA256}  ${tarball}" | sha256sum --check --strict
+          tar xzf "$tarball"
+          install -m 0755 cargo-near-x86_64-unknown-linux-gnu/cargo-near "$HOME/.cargo/bin/cargo-near"
           cargo near --version
       - name: Build in the pinned cargo-near image
         working-directory: contracts/approval/contract
@@ -69,7 +79,7 @@ jobs:
           hex=$(sha256sum "$wasm" | cut -d' ' -f1)
           echo "approval_contract.wasm sha256: $hex" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "Compare with the base58 \`code_hash\` of a deployed account to verify it." >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: approval-contract-wasm
           path: |
@@ -82,17 +92,17 @@ jobs:
     needs: wasm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: contracts/approval
           key: sandbox
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: approval-contract-wasm
           path: contracts/approval/artifact
