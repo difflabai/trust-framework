@@ -1,0 +1,16 @@
+[package]
+name = "approval-core"
+version = "0.1.0"
+edition = "2021"
+description = "Pure state machine for the NEAR action-approval contract (no near-sdk dependency)"
+publish = false
+
+[features]
+# Storage serialization for on-chain use. Off by default so the core builds
+# with zero dependencies for tests and verification tooling.
+borsh = ["dep:borsh"]
+
+[dependencies]
+# `unstable__schema` lets near-sdk ABI generation (cargo near build) describe
+# the contract state, which embeds these types.
+borsh = { version = "1", features = ["derive", "unstable__schema"], optional = true }
