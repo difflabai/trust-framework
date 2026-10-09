@@ -1,0 +1,104 @@
+name: approval-contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/approval/**"
+      - ".github/workflows/approval-contract.yml"
+  pull_request:
+    paths:
+      - "contracts/approval/**"
+      - ".github/workflows/approval-contract.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: approval-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.97.0"
+  CARGO_NEAR_VERSION: "0.22.0"
+
+defaults:
+  run:
+    working-directory: contracts/approval
+
+jobs:
+  check:
+    name: fmt, clippy, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts/approval
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test -p approval-core --locked
+      - run: cargo test -p approval-core --features borsh --locked
+      - run: cargo test -p approval-contract --locked
+
+  wasm:
+    name: reproducible wasm
+    runs-on: ubuntu-latest
+    steps:
+      # Build the PR head commit itself (not the merge commit), so the
+      # recorded source snapshot is a commit that exists on a branch.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install cargo-near
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            "https://github.com/near/cargo-near/releases/download/cargo-near-v${CARGO_NEAR_VERSION}/cargo-near-installer.sh" | sh
+          cargo near --version
+      - name: Build in the pinned cargo-near image
+        working-directory: contracts/approval/contract
+        run: cargo near build reproducible-wasm
+      - name: Report the wasm hash
+        run: |
+          wasm=target/near/approval_contract/approval_contract.wasm
+          hex=$(sha256sum "$wasm" | cut -d' ' -f1)
+          echo "approval_contract.wasm sha256: $hex" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Compare with the base58 \`code_hash\` of a deployed account to verify it." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approval-contract-wasm
+          path: |
+            contracts/approval/target/near/approval_contract/approval_contract.wasm
+            contracts/approval/target/near/approval_contract/approval_contract_abi.json
+          if-no-files-found: error
+
+  sandbox:
+    name: sandbox tests
+    needs: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts/approval
+          key: sandbox
+      - uses: actions/download-artifact@v4
+        with:
+          name: approval-contract-wasm
+          path: contracts/approval/artifact
+      - name: Run sandbox tests against the reproducible wasm
+        env:
+          APPROVAL_WASM: ${{ github.workspace }}/contracts/approval/artifact/approval_contract.wasm
+        run: |
+          ulimit -n 65535
+          cargo test -p approval-sandbox-tests --locked -- --nocapture

@@ -18,8 +18,15 @@
 //!        ▼                                   ▼
 //!     Pending ───────────────────────────► Approved   (terminal, immutable)
 //!        │
+//!        ├── reject (approver key) ──────► Rejected   (terminal, immutable)
+//!        │
 //!        └── agent key revoked ──────────► Void       (terminal: never approvable)
 //! ```
+//!
+//! Every key registration gets a unique, increasing registration id. Requests
+//! and decisions record the registration they were made under, and revoking
+//! a key records the block it was revoked at against that id, so a verifier
+//! can tell whether (and when) the key behind a proof was later revoked.
 //!
 //! Every function either returns `Err` without touching the store, or
 //! performs all of its writes. The NEAR runtime also reverts state on panic,
@@ -38,6 +45,13 @@ pub type RequestId = u64;
 /// event logs, so a worst-case (fully JSON-escaped) action must stay well
 /// under NEAR's 16 KiB per-receipt log limit; don't raise this past ~2.5 KiB.
 pub const MAX_ACTION_LEN: usize = 2048;
+
+// `ApprovalError::ActionTooLong`'s message names the limit; keep them in step.
+const _: () = assert!(MAX_ACTION_LEN == 2048);
+
+/// Unique id of one registration of a key. Re-registering a revoked key
+/// gives it a new id.
+pub type RegistrationId = u64;
 
 /// Maximum number of pending requests per agent key. Bounds the storage an
 /// agent can consume without an approver's involvement.
@@ -68,6 +82,7 @@ pub enum Role {
 pub struct Principal<A> {
     pub account_id: A,
     pub role: Role,
+    pub registration_id: RegistrationId,
     /// Request count when this registration was made. Requests with a lower
     /// id were made under an earlier, since-revoked registration of the same
     /// key and can never be approved.
@@ -108,7 +123,20 @@ pub struct Approval<A, K> {
     pub approval_index: u64,
     pub approver_account_id: A,
     pub approver_key: K,
+    pub approver_registration_id: RegistrationId,
     pub approved_at: BlockTime,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "borsh",
+    derive(BorshSerialize, BorshDeserialize, BorshSchema)
+)]
+pub struct Rejection<A, K> {
+    pub approver_account_id: A,
+    pub approver_key: K,
+    pub approver_registration_id: RegistrationId,
+    pub rejected_at: BlockTime,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -120,17 +148,22 @@ pub struct ActionRequest<A, K> {
     pub id: RequestId,
     pub agent_account_id: A,
     pub agent_key: K,
+    pub agent_registration_id: RegistrationId,
     pub action: String,
     pub requested_at: BlockTime,
-    /// `None` while pending. Once set it is never modified.
+    /// `None` unless approved. Once set it is never modified.
     pub approval: Option<Approval<A, K>>,
+    /// `None` unless rejected. Once set it is never modified. At most one of
+    /// `approval` and `rejection` is ever set.
+    pub rejection: Option<Rejection<A, K>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RequestStatus {
-    /// Not yet approved, and still approvable.
+    /// Not yet decided, and still approvable.
     Pending,
     Approved,
+    Rejected,
     /// Not approved, and never will be: the agent key registration it was
     /// made under has been revoked.
     Void,
@@ -145,26 +178,42 @@ pub struct ApprovalProof<A, K> {
     pub action: String,
     pub agent_account_id: A,
     pub agent_key: K,
+    pub agent_registration_id: RegistrationId,
     pub requested_at: BlockTime,
     pub approver_account_id: A,
     pub approver_key: K,
+    pub approver_registration_id: RegistrationId,
     pub approved_at: BlockTime,
+}
+
+/// When each key registration behind a proof was revoked, if it has been.
+/// Unlike the proof itself this can change after approval: a verifier
+/// should distrust approvals whose keys were later revoked as compromised.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ProofRevocations {
+    pub agent: Option<BlockTime>,
+    pub approver: Option<BlockTime>,
 }
 
 impl<A: Clone, K: Clone> ActionRequest<A, K> {
     pub fn proof(&self) -> Option<ApprovalProof<A, K>> {
-        let approval = self.approval.as_ref()?;
-        Some(ApprovalProof {
+        self.approval.as_ref().map(|a| self.proof_for(a))
+    }
+
+    fn proof_for(&self, approval: &Approval<A, K>) -> ApprovalProof<A, K> {
+        ApprovalProof {
             approval_index: approval.approval_index,
             request_id: self.id,
             action: self.action.clone(),
             agent_account_id: self.agent_account_id.clone(),
             agent_key: self.agent_key.clone(),
+            agent_registration_id: self.agent_registration_id,
             requested_at: self.requested_at,
             approver_account_id: approval.approver_account_id.clone(),
             approver_key: approval.approver_key.clone(),
+            approver_registration_id: approval.approver_registration_id,
             approved_at: approval.approved_at,
-        })
+        }
     }
 }
 
@@ -182,6 +231,7 @@ pub enum ApprovalError {
     TooManyPending,
     RequestNotFound,
     AlreadyApproved,
+    AlreadyRejected,
     AgentRevoked,
     ActionMismatch,
     SelfApproval,
@@ -205,6 +255,7 @@ impl ApprovalError {
             Self::TooManyPending => "agent key has too many pending requests",
             Self::RequestNotFound => "request not found",
             Self::AlreadyApproved => "request is already approved",
+            Self::AlreadyRejected => "request is already rejected",
             Self::AgentRevoked => "request is void: its agent key was revoked",
             Self::ActionMismatch => "action does not match the request",
             Self::SelfApproval => "approver and agent must be different accounts",
@@ -228,7 +279,11 @@ impl core::fmt::Display for ApprovalError {
 ///   `request_count()` and then increments it, and `replace_request`
 ///   overwrites the existing entry at `request.id`;
 /// - an append-only array of request ids (the approval log), where
-///   `push_approval` stores at index `approval_count()` and then increments it.
+///   `push_approval` stores at index `approval_count()` and then increments it;
+/// - a counter of registrations made (`registration_count`,
+///   `increment_registration_count`);
+/// - a map `RegistrationId -> BlockTime` of revocations (`revocation`,
+///   `insert_revocation`), written at most once per id.
 pub trait Store<A, K> {
     fn owner(&self) -> &A;
 
@@ -244,21 +299,27 @@ pub trait Store<A, K> {
     fn approval_count(&self) -> u64;
     fn approved_request_id(&self, approval_index: u64) -> Option<RequestId>;
     fn push_approval(&mut self, request_id: RequestId);
+
+    fn registration_count(&self) -> u64;
+    fn increment_registration_count(&mut self);
+    fn revocation(&self, registration_id: RegistrationId) -> Option<BlockTime>;
+    fn insert_revocation(&mut self, registration_id: RegistrationId, revoked_at: BlockTime);
 }
 
-/// Registers `key` to `account_id` with `role`. Owner only. A key must be
-/// revoked before it can be re-registered.
+/// Registers `key` to `account_id` with `role` under a fresh registration
+/// id, and returns the registration. Owner only. A key must be revoked
+/// before it can be re-registered.
 ///
-/// Guards: `NotOwner`, `KeyAlreadyRegistered`.
+/// Guards: `NotOwner`, `KeyAlreadyRegistered`, `LogFull`.
 pub fn add_principal<A, K, S>(
     store: &mut S,
     caller: &A,
     key: K,
     account_id: A,
     role: Role,
-) -> Result<(), ApprovalError>
+) -> Result<Principal<A>, ApprovalError>
 where
-    A: PartialEq,
+    A: Clone + PartialEq,
     S: Store<A, K>,
 {
     if caller != store.owner() {
@@ -267,25 +328,34 @@ where
     if store.principal(&key).is_some() {
         return Err(ApprovalError::KeyAlreadyRegistered);
     }
+    let registration_id = store.registration_count();
+    if registration_id == u64::MAX {
+        return Err(ApprovalError::LogFull);
+    }
     let principal = Principal {
         account_id,
         role,
+        registration_id,
         active_from: store.request_count(),
         pending: 0,
     };
-    store.insert_principal(key, principal);
-    Ok(())
+    store.increment_registration_count();
+    store.insert_principal(key, principal.clone());
+    Ok(principal)
 }
 
-/// Removes `key` from the registry. Owner only. Approvals already recorded
-/// stay valid. Pending requests made under this registration become void
-/// permanently, even if the key is registered again later.
+/// Removes `key` from the registry, records `now` as the revocation time of
+/// its registration, and returns the removed registration. Owner only.
+/// Approvals and rejections already recorded stay, and their proofs report
+/// the revocation. Pending requests made under this registration become
+/// void permanently, even if the key is registered again later.
 ///
 /// Guards: `NotOwner`, `KeyNotRegistered`.
 pub fn revoke_key<A, K, S>(
     store: &mut S,
     caller: &A,
     key: &K,
+    now: BlockTime,
 ) -> Result<Principal<A>, ApprovalError>
 where
     A: PartialEq,
@@ -294,9 +364,11 @@ where
     if caller != store.owner() {
         return Err(ApprovalError::NotOwner);
     }
-    store
+    let removed = store
         .remove_principal(key)
-        .ok_or(ApprovalError::KeyNotRegistered)
+        .ok_or(ApprovalError::KeyNotRegistered)?;
+    store.insert_revocation(removed.registration_id, now);
+    Ok(removed)
 }
 
 /// Checks that the immediate caller is the signing account and that the
@@ -384,9 +456,11 @@ where
         id,
         agent_account_id: caller.signer.clone(),
         agent_key: caller.signer_key.clone(),
+        agent_registration_id: principal.registration_id,
         action,
         requested_at: now,
         approval: None,
+        rejection: None,
     };
     principal.pending += 1;
     store.insert_principal(caller.signer_key.clone(), principal);
@@ -399,8 +473,9 @@ where
 /// signed transaction commits to exactly what was reviewed.
 ///
 /// Guards: [authentication](authenticate), `RequestNotFound`,
-/// `AlreadyApproved`, `AgentRevoked` (the request is void), `ActionMismatch`,
-/// `SelfApproval` (approver account is the agent account), `LogFull`.
+/// `AlreadyApproved`, `AlreadyRejected`, `AgentRevoked` (the request is
+/// void), `ActionMismatch`, `SelfApproval` (approver account is the agent
+/// account), `LogFull`.
 pub fn approve<A, K, S>(
     store: &mut S,
     caller: &Caller<A, K>,
@@ -413,14 +488,8 @@ where
     K: Clone,
     S: Store<A, K>,
 {
-    authenticate(store, caller, Role::Approver)?;
-    let mut request = store
-        .request(request_id)
-        .ok_or(ApprovalError::RequestNotFound)?;
-    if request.approval.is_some() {
-        return Err(ApprovalError::AlreadyApproved);
-    }
-    let mut agent = live_agent_registration(store, &request).ok_or(ApprovalError::AgentRevoked)?;
+    let approver = authenticate(store, caller, Role::Approver)?;
+    let (mut request, mut agent) = decidable_request(store, request_id)?;
     if request.action != action {
         return Err(ApprovalError::ActionMismatch);
     }
@@ -431,28 +500,80 @@ where
     if approval_index == u64::MAX {
         return Err(ApprovalError::LogFull);
     }
-    let proof = ApprovalProof {
+    let approval = Approval {
         approval_index,
-        request_id,
-        action: request.action.clone(),
-        agent_account_id: request.agent_account_id.clone(),
-        agent_key: request.agent_key.clone(),
-        requested_at: request.requested_at,
         approver_account_id: caller.signer.clone(),
         approver_key: caller.signer_key.clone(),
+        approver_registration_id: approver.registration_id,
         approved_at: now,
     };
-    request.approval = Some(Approval {
-        approval_index,
-        approver_account_id: caller.signer.clone(),
-        approver_key: caller.signer_key.clone(),
-        approved_at: now,
-    });
+    let proof = request.proof_for(&approval);
+    request.approval = Some(approval);
     agent.pending = agent.pending.saturating_sub(1);
     store.insert_principal(request.agent_key.clone(), agent);
     store.replace_request(request);
     store.push_approval(request_id);
     Ok(proof)
+}
+
+/// Rejects a pending request, signed by an approver key, freeing its slot in
+/// the agent key's pending limit. A rejected request can never be approved.
+///
+/// Guards: [authentication](authenticate), `RequestNotFound`,
+/// `AlreadyApproved`, `AlreadyRejected`, `AgentRevoked` (the request is
+/// void), `SelfApproval` (approver account is the agent account).
+pub fn reject<A, K, S>(
+    store: &mut S,
+    caller: &Caller<A, K>,
+    request_id: RequestId,
+    now: BlockTime,
+) -> Result<ActionRequest<A, K>, ApprovalError>
+where
+    A: Clone + PartialEq,
+    K: Clone,
+    S: Store<A, K>,
+{
+    let approver = authenticate(store, caller, Role::Approver)?;
+    let (mut request, mut agent) = decidable_request(store, request_id)?;
+    if caller.signer == request.agent_account_id {
+        return Err(ApprovalError::SelfApproval);
+    }
+    request.rejection = Some(Rejection {
+        approver_account_id: caller.signer.clone(),
+        approver_key: caller.signer_key.clone(),
+        approver_registration_id: approver.registration_id,
+        rejected_at: now,
+    });
+    agent.pending = agent.pending.saturating_sub(1);
+    store.insert_principal(request.agent_key.clone(), agent);
+    store.replace_request(request.clone());
+    Ok(request)
+}
+
+/// The pending request `request_id` and the live agent registration it was
+/// made under, for an approver's decision.
+///
+/// Guards: `RequestNotFound`, `AlreadyApproved`, `AlreadyRejected`,
+/// `AgentRevoked`.
+fn decidable_request<A, K, S>(
+    store: &S,
+    request_id: RequestId,
+) -> Result<(ActionRequest<A, K>, Principal<A>), ApprovalError>
+where
+    A: PartialEq,
+    S: Store<A, K>,
+{
+    let request = store
+        .request(request_id)
+        .ok_or(ApprovalError::RequestNotFound)?;
+    if request.approval.is_some() {
+        return Err(ApprovalError::AlreadyApproved);
+    }
+    if request.rejection.is_some() {
+        return Err(ApprovalError::AlreadyRejected);
+    }
+    let agent = live_agent_registration(store, &request).ok_or(ApprovalError::AgentRevoked)?;
+    Ok((request, agent))
 }
 
 /// Current status of `request_id`, or `None` if it doesn't exist.
@@ -461,14 +582,35 @@ where
     A: PartialEq,
     S: Store<A, K>,
 {
-    let request = store.request(request_id)?;
-    Some(if request.approval.is_some() {
+    store.request(request_id).map(|r| status_of(store, &r))
+}
+
+/// Current status of a request already read from `store`.
+pub fn status_of<A, K, S>(store: &S, request: &ActionRequest<A, K>) -> RequestStatus
+where
+    A: PartialEq,
+    S: Store<A, K>,
+{
+    if request.approval.is_some() {
         RequestStatus::Approved
-    } else if live_agent_registration(store, &request).is_some() {
+    } else if request.rejection.is_some() {
+        RequestStatus::Rejected
+    } else if live_agent_registration(store, request).is_some() {
         RequestStatus::Pending
     } else {
         RequestStatus::Void
-    })
+    }
+}
+
+/// Revocation times of the key registrations behind `proof`.
+pub fn proof_revocations<A, K, S>(store: &S, proof: &ApprovalProof<A, K>) -> ProofRevocations
+where
+    S: Store<A, K>,
+{
+    ProofRevocations {
+        agent: store.revocation(proof.agent_registration_id),
+        approver: store.revocation(proof.approver_registration_id),
+    }
 }
 
 /// Proof of approval for `request_id`, if it has been approved.
@@ -507,6 +649,8 @@ pub struct MemStore<A, K> {
     pub principals: Vec<(K, Principal<A>)>,
     pub requests: Vec<ActionRequest<A, K>>,
     pub approval_log: Vec<RequestId>,
+    pub registration_count: u64,
+    pub revocations: Vec<(RegistrationId, BlockTime)>,
 }
 
 impl<A, K> MemStore<A, K> {
@@ -516,6 +660,8 @@ impl<A, K> MemStore<A, K> {
             principals: Vec::new(),
             requests: Vec::new(),
             approval_log: Vec::new(),
+            registration_count: 0,
+            revocations: Vec::new(),
         }
     }
 }
@@ -577,6 +723,25 @@ impl<A: Clone, K: Clone + PartialEq> Store<A, K> for MemStore<A, K> {
 
     fn push_approval(&mut self, request_id: RequestId) {
         self.approval_log.push(request_id);
+    }
+
+    fn registration_count(&self) -> u64 {
+        self.registration_count
+    }
+
+    fn increment_registration_count(&mut self) {
+        self.registration_count += 1;
+    }
+
+    fn revocation(&self, registration_id: RegistrationId) -> Option<BlockTime> {
+        self.revocations
+            .iter()
+            .find(|(id, _)| *id == registration_id)
+            .map(|(_, at)| *at)
+    }
+
+    fn insert_revocation(&mut self, registration_id: RegistrationId, revoked_at: BlockTime) {
+        self.revocations.push((registration_id, revoked_at));
     }
 }
 

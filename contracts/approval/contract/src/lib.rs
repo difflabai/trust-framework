@@ -4,9 +4,11 @@
 //! its registered access key; the contract records the request and emits
 //! `approval_requested`. An approver signs `approve` with its own registered
 //! key, restating the action it reviewed; the contract records who approved,
-//! when, and with which key, and emits `action_approved`. Approval proofs are
+//! when, and with which key, and emits `action_approved`. An approver can
+//! instead `reject` a request (`action_rejected`). Approval proofs are
 //! publicly readable per request (`get_approval`) or as a paged log
-//! (`get_approvals`).
+//! (`get_approvals`), and report whether either key behind them has since
+//! been revoked. Key registry changes emit `key_added` / `key_revoked`.
 //!
 //! All authorization and state-transition logic lives in `approval-core`.
 //! This crate only maps the NEAR runtime onto it: caller identity, block
@@ -18,8 +20,8 @@
 //! "the signer's own account called us" mean "the key holder called us".
 
 use approval_core::{
-    ActionRequest, ApprovalError, ApprovalProof, BlockTime, Caller, Principal, RequestId,
-    RequestStatus, Role, Store, DEFAULT_PAGE_SIZE,
+    ActionRequest, ApprovalError, ApprovalProof, BlockTime, Caller, Principal, RegistrationId,
+    RequestId, RequestStatus, Role, Store, DEFAULT_PAGE_SIZE,
 };
 use near_sdk::json_types::U64;
 use near_sdk::store::LookupMap;
@@ -38,6 +40,9 @@ pub struct ApprovalContract {
     /// Approval index -> request id, in approval order.
     approval_log: LookupMap<u64, RequestId>,
     approval_count: u64,
+    registration_count: u64,
+    /// Registration id -> when that registration was revoked.
+    revocations: LookupMap<RegistrationId, BlockTime>,
 }
 
 #[near(event_json(standard = "trust_approval"))]
@@ -46,6 +51,21 @@ pub enum ApprovalEvent {
     ApprovalRequested(RequestView),
     #[event_version("1.0.0")]
     ActionApproved(ApprovalProofView),
+    #[event_version("1.0.0")]
+    ActionRejected(RejectionView),
+    #[event_version("1.0.0")]
+    KeyAdded(KeyView),
+    #[event_version("1.0.0")]
+    KeyRevoked(KeyRevokedView),
+}
+
+/// A block height and its nanosecond timestamp (a string, since it exceeds
+/// JSON's safe integer range).
+#[near(serializers = [json])]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlockTimeView {
+    pub block: u64,
+    pub ns: U64,
 }
 
 #[near(serializers = [json])]
@@ -61,18 +81,45 @@ pub enum RoleView {
 pub struct PrincipalView {
     pub account_id: AccountId,
     pub role: RoleView,
+    pub registration_id: RegistrationId,
     /// Pending requests made with this key (agent keys only).
     pub pending: u32,
 }
 
-/// `pending`: awaiting approval. `approved`: final. `void`: the agent key it
-/// was made with has been revoked, so it can never be approved.
+/// Data of `key_added`.
+#[near(serializers = [json])]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeyView {
+    pub public_key: PublicKey,
+    pub account_id: AccountId,
+    pub role: RoleView,
+    pub registration_id: RegistrationId,
+}
+
+/// Data of `key_revoked`. For an agent key, the `voided_pending` requests
+/// made under this registration that were still pending are now void.
+#[near(serializers = [json])]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeyRevokedView {
+    pub public_key: PublicKey,
+    pub account_id: AccountId,
+    pub role: RoleView,
+    pub registration_id: RegistrationId,
+    pub revoked_at_block: u64,
+    pub revoked_at_ns: U64,
+    pub voided_pending: u32,
+}
+
+/// `pending`: awaiting a decision. `approved` and `rejected`: final. `void`:
+/// the agent key it was made with has been revoked, so it can never be
+/// decided.
 #[near(serializers = [json])]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RequestStatusView {
     Pending,
     Approved,
+    Rejected,
     Void,
 }
 
@@ -82,15 +129,39 @@ pub struct RequestView {
     pub request_id: RequestId,
     pub agent_account_id: AccountId,
     pub agent_public_key: PublicKey,
+    pub agent_registration_id: RegistrationId,
     pub action: String,
     pub requested_at_block: u64,
     pub requested_at_ns: U64,
     pub status: RequestStatusView,
 }
 
+/// Record that `approver_public_key` rejected request `request_id`.
+#[near(serializers = [json])]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RejectionView {
+    pub request_id: RequestId,
+    pub action: String,
+    pub agent_account_id: AccountId,
+    pub agent_public_key: PublicKey,
+    pub agent_registration_id: RegistrationId,
+    pub requested_at_block: u64,
+    pub requested_at_ns: U64,
+    pub approver_account_id: AccountId,
+    pub approver_public_key: PublicKey,
+    pub approver_registration_id: RegistrationId,
+    pub rejected_at_block: u64,
+    pub rejected_at_ns: U64,
+}
+
 /// Public proof that `approver_public_key` approved `action` as requested by
 /// `agent_public_key`. Nanosecond timestamps are strings (`U64`) because
 /// they exceed JSON's safe integer range.
+///
+/// Every field is fixed at approval except `agent_key_revoked_at` and
+/// `approver_key_revoked_at`: they are `null` until the owner revokes the
+/// registration (`*_registration_id`) the key acted under, and then report
+/// when. In the `action_approved` event they are always `null`.
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ApprovalProofView {
@@ -99,12 +170,16 @@ pub struct ApprovalProofView {
     pub action: String,
     pub agent_account_id: AccountId,
     pub agent_public_key: PublicKey,
+    pub agent_registration_id: RegistrationId,
     pub requested_at_block: u64,
     pub requested_at_ns: U64,
     pub approver_account_id: AccountId,
     pub approver_public_key: PublicKey,
+    pub approver_registration_id: RegistrationId,
     pub approved_at_block: u64,
     pub approved_at_ns: U64,
+    pub agent_key_revoked_at: Option<BlockTimeView>,
+    pub approver_key_revoked_at: Option<BlockTimeView>,
 }
 
 #[near]
@@ -122,25 +197,41 @@ impl ApprovalContract {
             request_count: 0,
             approval_log: LookupMap::new(b"a".to_vec()),
             approval_count: 0,
+            registration_count: 0,
+            revocations: LookupMap::new(b"v".to_vec()),
         }
     }
 
     /// Registers `public_key` as an agent key of `account_id`. Owner only.
+    /// Emits `key_added`.
     pub fn add_agent(&mut self, account_id: AccountId, public_key: PublicKey) {
         self.add_principal(account_id, public_key, Role::Agent);
     }
 
     /// Registers `public_key` as an approver key of `account_id`. Owner only.
+    /// Emits `key_added`.
     pub fn add_approver(&mut self, account_id: AccountId, public_key: PublicKey) {
         self.add_principal(account_id, public_key, Role::Approver);
     }
 
-    /// Removes a key from the registry. Owner only. Existing approvals remain
-    /// valid. Pending requests made with the key become void permanently,
-    /// even if the key is registered again.
+    /// Removes a key from the registry and records when. Owner only.
+    /// Existing approvals remain, and their proofs report the revocation.
+    /// Pending requests made with the key become void permanently, even if
+    /// the key is registered again. Emits `key_revoked`.
     pub fn revoke_key(&mut self, public_key: PublicKey) {
         let caller = env::predecessor_account_id();
-        ok(approval_core::revoke_key(self, &caller, &public_key));
+        let at = now();
+        let removed = ok(approval_core::revoke_key(self, &caller, &public_key, at));
+        ApprovalEvent::KeyRevoked(KeyRevokedView {
+            public_key,
+            account_id: removed.account_id,
+            role: removed.role.into(),
+            registration_id: removed.registration_id,
+            revoked_at_block: at.height,
+            revoked_at_ns: at.timestamp_ns.into(),
+            voided_pending: removed.pending,
+        })
+        .emit();
     }
 
     /// Requests approval for `action` (1 to 2048 bytes). Must be called by
@@ -171,8 +262,20 @@ impl ApprovalContract {
             &action,
             now(),
         ));
-        let view = ApprovalProofView::from(proof);
+        let view = self.proof_view(proof);
         ApprovalEvent::ActionApproved(view.clone()).emit();
+        view
+    }
+
+    /// Rejects pending request `request_id`, freeing a slot in the agent
+    /// key's pending limit. A rejected request can never be approved. Must
+    /// be called by the signing account with a registered approver key of
+    /// that account, and the approver account must differ from the agent's.
+    /// Emits `action_rejected` and returns the rejection.
+    pub fn reject(&mut self, request_id: RequestId) -> RejectionView {
+        let request = ok(approval_core::reject(self, &caller(), request_id, now()));
+        let view = rejection_view(request).unwrap_or_else(|| env::abort());
+        ApprovalEvent::ActionRejected(view.clone()).emit();
         view
     }
 
@@ -193,9 +296,21 @@ impl ApprovalContract {
     }
 
     /// Proof of approval for one request, or `None` if it is unknown,
-    /// pending or void.
+    /// pending, rejected or void.
     pub fn get_approval(&self, request_id: RequestId) -> Option<ApprovalProofView> {
-        approval_core::approval::<AccountId, PublicKey, _>(self, request_id).map(Into::into)
+        approval_core::approval::<AccountId, PublicKey, _>(self, request_id)
+            .map(|p| self.proof_view(p))
+    }
+
+    /// Rejection of one request, or `None` if it is not rejected.
+    pub fn get_rejection(&self, request_id: RequestId) -> Option<RejectionView> {
+        self.request(request_id).and_then(rejection_view)
+    }
+
+    /// When key registration `registration_id` was revoked, or `None` if it
+    /// is live or was never issued.
+    pub fn get_revocation(&self, registration_id: RegistrationId) -> Option<BlockTimeView> {
+        self.revocation(registration_id).map(Into::into)
     }
 
     /// Approval proofs in approval order, starting at `from_index` (default 0)
@@ -212,7 +327,7 @@ impl ApprovalContract {
             limit.unwrap_or(DEFAULT_PAGE_SIZE),
         )
         .into_iter()
-        .map(Into::into)
+        .map(|p| self.proof_view(p))
         .collect()
     }
 
@@ -224,21 +339,55 @@ impl ApprovalContract {
 impl ApprovalContract {
     fn add_principal(&mut self, account_id: AccountId, public_key: PublicKey, role: Role) {
         let caller = env::predecessor_account_id();
-        ok(approval_core::add_principal(
-            self, &caller, public_key, account_id, role,
+        let added = ok(approval_core::add_principal(
+            self,
+            &caller,
+            public_key.clone(),
+            account_id,
+            role,
         ));
+        ApprovalEvent::KeyAdded(KeyView {
+            public_key,
+            account_id: added.account_id,
+            role: added.role.into(),
+            registration_id: added.registration_id,
+        })
+        .emit();
+    }
+
+    fn proof_view(&self, proof: Proof) -> ApprovalProofView {
+        let revoked = approval_core::proof_revocations(self, &proof);
+        ApprovalProofView {
+            approval_index: proof.approval_index,
+            request_id: proof.request_id,
+            action: proof.action,
+            agent_account_id: proof.agent_account_id,
+            agent_public_key: proof.agent_key,
+            agent_registration_id: proof.agent_registration_id,
+            requested_at_block: proof.requested_at.height,
+            requested_at_ns: proof.requested_at.timestamp_ns.into(),
+            approver_account_id: proof.approver_account_id,
+            approver_public_key: proof.approver_key,
+            approver_registration_id: proof.approver_registration_id,
+            approved_at_block: proof.approved_at.height,
+            approved_at_ns: proof.approved_at.timestamp_ns.into(),
+            agent_key_revoked_at: revoked.agent.map(Into::into),
+            approver_key_revoked_at: revoked.approver.map(Into::into),
+        }
     }
 
     fn request_view(&self, r: &Request) -> RequestView {
-        let status = match approval_core::request_status::<AccountId, PublicKey, _>(self, r.id) {
-            Some(RequestStatus::Approved) => RequestStatusView::Approved,
-            Some(RequestStatus::Void) => RequestStatusView::Void,
-            Some(RequestStatus::Pending) | None => RequestStatusView::Pending,
+        let status = match approval_core::status_of(self, r) {
+            RequestStatus::Pending => RequestStatusView::Pending,
+            RequestStatus::Approved => RequestStatusView::Approved,
+            RequestStatus::Rejected => RequestStatusView::Rejected,
+            RequestStatus::Void => RequestStatusView::Void,
         };
         RequestView {
             request_id: r.id,
             agent_account_id: r.agent_account_id.clone(),
             agent_public_key: r.agent_key.clone(),
+            agent_registration_id: r.agent_registration_id,
             action: r.action.clone(),
             requested_at_block: r.requested_at.height,
             requested_at_ns: r.requested_at.timestamp_ns.into(),
@@ -293,6 +442,22 @@ impl Store<AccountId, PublicKey> for ApprovalContract {
         self.approval_log.insert(self.approval_count, request_id);
         self.approval_count += 1;
     }
+
+    fn registration_count(&self) -> u64 {
+        self.registration_count
+    }
+
+    fn increment_registration_count(&mut self) {
+        self.registration_count += 1;
+    }
+
+    fn revocation(&self, registration_id: RegistrationId) -> Option<BlockTime> {
+        self.revocations.get(&registration_id).copied()
+    }
+
+    fn insert_revocation(&mut self, registration_id: RegistrationId, revoked_at: BlockTime) {
+        self.revocations.insert(registration_id, revoked_at);
+    }
 }
 
 fn caller() -> Caller<AccountId, PublicKey> {
@@ -314,34 +479,49 @@ fn ok<T>(result: Result<T, ApprovalError>) -> T {
     result.unwrap_or_else(|e| env::panic_str(e.as_str()))
 }
 
-impl From<Principal<AccountId>> for PrincipalView {
-    fn from(p: Principal<AccountId>) -> Self {
-        let role = match p.role {
+fn rejection_view(r: Request) -> Option<RejectionView> {
+    let rejection = r.rejection?;
+    Some(RejectionView {
+        request_id: r.id,
+        action: r.action,
+        agent_account_id: r.agent_account_id,
+        agent_public_key: r.agent_key,
+        agent_registration_id: r.agent_registration_id,
+        requested_at_block: r.requested_at.height,
+        requested_at_ns: r.requested_at.timestamp_ns.into(),
+        approver_account_id: rejection.approver_account_id,
+        approver_public_key: rejection.approver_key,
+        approver_registration_id: rejection.approver_registration_id,
+        rejected_at_block: rejection.rejected_at.height,
+        rejected_at_ns: rejection.rejected_at.timestamp_ns.into(),
+    })
+}
+
+impl From<Role> for RoleView {
+    fn from(role: Role) -> Self {
+        match role {
             Role::Agent => RoleView::Agent,
             Role::Approver => RoleView::Approver,
-        };
-        Self {
-            account_id: p.account_id,
-            role,
-            pending: p.pending,
         }
     }
 }
 
-impl From<Proof> for ApprovalProofView {
-    fn from(p: Proof) -> Self {
+impl From<BlockTime> for BlockTimeView {
+    fn from(t: BlockTime) -> Self {
         Self {
-            approval_index: p.approval_index,
-            request_id: p.request_id,
-            action: p.action,
-            agent_account_id: p.agent_account_id,
-            agent_public_key: p.agent_key,
-            requested_at_block: p.requested_at.height,
-            requested_at_ns: p.requested_at.timestamp_ns.into(),
-            approver_account_id: p.approver_account_id,
-            approver_public_key: p.approver_key,
-            approved_at_block: p.approved_at.height,
-            approved_at_ns: p.approved_at.timestamp_ns.into(),
+            block: t.height,
+            ns: t.timestamp_ns.into(),
+        }
+    }
+}
+
+impl From<Principal<AccountId>> for PrincipalView {
+    fn from(p: Principal<AccountId>) -> Self {
+        Self {
+            account_id: p.account_id,
+            role: p.role.into(),
+            registration_id: p.registration_id,
+            pending: p.pending,
         }
     }
 }
@@ -434,6 +614,7 @@ mod tests {
             "request_id": 0,
             "agent_account_id": agent(),
             "agent_public_key": AGENT_PK,
+            "agent_registration_id": 0,
             "action": action,
             "requested_at_block": 10,
             "requested_at_ns": "10000000000",
@@ -460,12 +641,16 @@ mod tests {
             "action": action,
             "agent_account_id": agent(),
             "agent_public_key": AGENT_PK,
+            "agent_registration_id": 0,
             "requested_at_block": 10,
             "requested_at_ns": "10000000000",
             "approver_account_id": approver(),
             "approver_public_key": APPROVER_PK,
+            "approver_registration_id": 1,
             "approved_at_block": 12,
             "approved_at_ns": "12000000000",
+            "agent_key_revoked_at": null,
+            "approver_key_revoked_at": null,
         });
         assert_eq!(
             event(),
@@ -488,6 +673,137 @@ mod tests {
         assert_eq!((c.get_request_count(), c.get_approval_count()), (1, 1));
         assert_eq!(c.get_request(1), None);
         assert_eq!(c.get_approval(1), None);
+    }
+
+    #[test]
+    fn reject_emits_event_and_is_readable() {
+        let mut c = setup();
+        signed_by(agent(), AGENT_PK, 2);
+        let id = c.request_action("wipe disk".into());
+        signed_by(approver(), APPROVER_PK, 3);
+        let rejection = c.reject(id);
+        let expected = json!({
+            "request_id": 0,
+            "action": "wipe disk",
+            "agent_account_id": agent(),
+            "agent_public_key": AGENT_PK,
+            "agent_registration_id": 0,
+            "requested_at_block": 2,
+            "requested_at_ns": "2000000000",
+            "approver_account_id": approver(),
+            "approver_public_key": APPROVER_PK,
+            "approver_registration_id": 1,
+            "rejected_at_block": 3,
+            "rejected_at_ns": "3000000000",
+        });
+        assert_eq!(
+            event(),
+            json!({
+                "standard": "trust_approval",
+                "version": "1.0.0",
+                "event": "action_rejected",
+                "data": expected,
+            })
+        );
+        assert_eq!(to_json(&rejection), expected);
+        let c = reload(c);
+        assert_eq!(c.get_rejection(id), Some(rejection));
+        assert_eq!(
+            c.get_request(id).unwrap().status,
+            RequestStatusView::Rejected
+        );
+        assert_eq!(c.get_approval(id), None);
+        assert_eq!(c.get_principal(pk(AGENT_PK)).unwrap().pending, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "request is already rejected")]
+    fn rejected_request_cannot_be_approved() {
+        let mut c = setup();
+        signed_by(agent(), AGENT_PK, 2);
+        let id = c.request_action("x".into());
+        signed_by(approver(), APPROVER_PK, 3);
+        c.reject(id);
+        let mut c = reload(c);
+        c.approve(id, "x".into());
+    }
+
+    #[test]
+    fn key_changes_emit_events() {
+        signed_by(contract_id(), OTHER_PK, 1);
+        let mut c = ApprovalContract::new(owner());
+        signed_by(owner(), OTHER_PK, 1);
+        c.add_agent(agent(), pk(AGENT_PK));
+        assert_eq!(
+            event(),
+            json!({
+                "standard": "trust_approval",
+                "version": "1.0.0",
+                "event": "key_added",
+                "data": {
+                    "public_key": AGENT_PK,
+                    "account_id": agent(),
+                    "role": "agent",
+                    "registration_id": 0,
+                },
+            })
+        );
+        signed_by(agent(), AGENT_PK, 2);
+        c.request_action("x".into());
+        c.request_action("y".into());
+        signed_by(owner(), OTHER_PK, 7);
+        c.revoke_key(pk(AGENT_PK));
+        assert_eq!(
+            event(),
+            json!({
+                "standard": "trust_approval",
+                "version": "1.0.0",
+                "event": "key_revoked",
+                "data": {
+                    "public_key": AGENT_PK,
+                    "account_id": agent(),
+                    "role": "agent",
+                    "registration_id": 0,
+                    "revoked_at_block": 7,
+                    "revoked_at_ns": "7000000000",
+                    "voided_pending": 2,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn proofs_report_later_key_revocation() {
+        let mut c = setup();
+        signed_by(agent(), AGENT_PK, 2);
+        let id = c.request_action("x".into());
+        signed_by(approver(), APPROVER_PK, 3);
+        let at_approval = c.approve(id, "x".into());
+        assert_eq!(at_approval.approver_key_revoked_at, None);
+        signed_by(owner(), OTHER_PK, 9);
+        c.revoke_key(pk(APPROVER_PK));
+        // A new registration of the same key does not clear the old one's
+        // revocation.
+        c.add_approver(approver(), pk(APPROVER_PK));
+        let c = reload(c);
+        let revoked = Some(BlockTimeView {
+            block: 9,
+            ns: 9_000_000_000.into(),
+        });
+        let proof = c.get_approval(id).unwrap();
+        assert_eq!(proof.approver_key_revoked_at, revoked);
+        assert_eq!(proof.agent_key_revoked_at, None);
+        assert_eq!(c.get_approvals(None, None), vec![proof.clone()]);
+        assert_eq!(
+            ApprovalProofView {
+                approver_key_revoked_at: None,
+                ..proof
+            },
+            at_approval
+        );
+        assert_eq!(c.get_revocation(1), revoked);
+        assert_eq!(c.get_revocation(0), None);
+        assert_eq!(c.get_principal(pk(APPROVER_PK)).unwrap().registration_id, 2);
     }
 
     #[test]
@@ -533,11 +849,11 @@ mod tests {
         let c = setup();
         assert_eq!(
             to_json(c.get_principal(pk(AGENT_PK))),
-            json!({ "account_id": agent(), "role": "agent", "pending": 0 })
+            json!({ "account_id": agent(), "role": "agent", "registration_id": 0, "pending": 0 })
         );
         assert_eq!(
             to_json(c.get_principal(pk(APPROVER_PK))),
-            json!({ "account_id": approver(), "role": "approver", "pending": 0 })
+            json!({ "account_id": approver(), "role": "approver", "registration_id": 1, "pending": 0 })
         );
         assert_eq!(c.get_principal(pk(OTHER_PK)), None);
         assert_eq!(c.get_owner(), owner());

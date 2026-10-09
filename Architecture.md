@@ -32,8 +32,9 @@ sarajevo/
 │       └── trust-proxy/          # Sidecar reverse proxy for agent guard enforcement
 ├── contracts/
 │   └── approval/                 # NEAR action-approval contract
-│       ├── core/                 # approval-core: dependency-free state machine
-│       └── contract/             # approval-contract: near-sdk shell, events, views
+│       ├── core/                 # approval-core: state machine (no near-sdk)
+│       ├── contract/             # approval-contract: near-sdk shell, events, views
+│       └── sandbox/              # near-workspaces tests against the built wasm
 └── Architecture.md               # This file
 ```
 
@@ -215,17 +216,21 @@ See `guards/crates/trust-proxy/README.md` for full deployment examples and confi
 A NEAR contract that gives agent actions a public, verifiable human (or
 agent) sign-off. An agent calls `request_action` signed with its registered
 key, and the contract emits `approval_requested`. An approver calls `approve`
-signed with its own key, and the contract emits `action_approved`. Each
-approval is an immutable proof readable by request (`get_approval`) or as a
-paged log (`get_approvals`).
+signed with its own key, and the contract emits `action_approved`, or calls
+`reject` (`action_rejected`). Each approval is an immutable proof readable by
+request (`get_approval`) or as a paged log (`get_approvals`), and reports
+whether either key behind it was later revoked.
 
-All logic lives in `approval-core`, a dependency-free state machine generic
-over account and key types. The near-sdk crate is a thin shell over it, so the
-code that tests and formal verification exercise is the code deployed
-on-chain. Authorization is per signing key (`env::signer_account_pk`) bound to
-an account, calls must come from the signing account itself (no relaying),
-an approval restates the action it approves, an approver can't approve its
-own account's requests, revoking an agent key permanently voids its pending
-requests, and each agent key may hold at most 16 pending requests. See
+All logic lives in `approval-core`, a state machine generic over account and
+key types with no dependencies by default; the on-chain build enables its
+`borsh` feature, which adds only borsh derives for storage. The near-sdk crate
+is a thin shell over it, so the transition logic that tests and formal
+verification exercise is the logic deployed on-chain. Authorization is per
+signing key (`env::signer_account_pk`) bound to an account, calls must come
+from the signing account itself (no relaying), an approval restates the action
+it approves, an approver can't decide its own account's requests, revoking a
+key records when and permanently voids its pending requests, and each agent
+key may hold at most 16 pending requests. Builds are reproducible from a
+pinned cargo-near image. See
 `contracts/approval/README.md` for the API, event schema, and the checks an
 off-chain verifier must make.

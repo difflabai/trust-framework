@@ -1,0 +1,13 @@
+[package]
+name = "approval-sandbox-tests"
+version = "0.1.0"
+edition = "2021"
+description = "near-workspaces tests that run the approval contract wasm in a local NEAR sandbox"
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+near-workspaces = { version = "0.23", default-features = false, features = ["install"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
