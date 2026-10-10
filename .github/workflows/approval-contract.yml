@@ -39,6 +39,9 @@ jobs:
     # vars.CI_RUNNER points every job at the org's self-hosted macOS
     # (Apple Silicon) runner. Unset, this falls back to GitHub-hosted Linux.
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    # The self-hosted runner is a single machine shared by every repo in the
+    # org; cap each job so a hang doesn't hold it for the 6-hour default.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # A self-hosted runner keeps RUSTUP_HOME across jobs and repos, and
@@ -73,6 +76,9 @@ jobs:
   wasm:
     name: reproducible wasm
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    # Longer than the others: on the Mac the amd64 build image runs under
+    # emulation.
+    timeout-minutes: 45
     steps:
       # Build the PR head commit itself (not the merge commit), so the
       # recorded source snapshot is a commit that exists on a branch.
@@ -113,19 +119,23 @@ jobs:
           if [ "$RUNNER_OS" = macOS ]; then
             # Docker Desktop on Apple Silicon: the pinned image is
             # linux/amd64 only, so it runs under emulation (same image
-            # digest, same toolchain, same wasm). cargo-near bind-mounts a
-            # temporary clone of the repo into the container; keep that
-            # clone under RUNNER_TEMP, which Docker Desktop shares and the
-            # runner cleans.
+            # digest, same toolchain, same wasm).
             export DOCKER_DEFAULT_PLATFORM=linux/amd64
+          fi
+          if [ "${RUNNER_ENVIRONMENT:-}" = self-hosted ]; then
+            # cargo-near bind-mounts a temporary clone of the repo into the
+            # container; keep that clone under RUNNER_TEMP, which the runner
+            # cleans, Docker Desktop shares, and the cleanup step below
+            # matches on.
             export TMPDIR="$RUNNER_TEMP"
           fi
           cargo near build reproducible-wasm
       # A cancelled run (concurrency cancels superseded pushes) can leave
-      # cargo-near's build container running on the self-hosted Mac. Remove
-      # only containers whose bind mount is this job's RUNNER_TEMP.
+      # cargo-near's build container running on a persistent self-hosted
+      # runner. Remove only containers whose bind mount is this job's
+      # RUNNER_TEMP.
       - name: Remove leftover cargo-near build containers
-        if: always() && runner.os == 'macOS'
+        if: always() && runner.environment == 'self-hosted'
         working-directory: ${{ runner.temp }}
         run: |
           for id in $(docker ps -aq --filter name=near-verify-rs-); do
@@ -152,6 +162,7 @@ jobs:
     name: sandbox tests
     needs: wasm
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
