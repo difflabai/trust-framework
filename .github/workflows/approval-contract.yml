@@ -113,6 +113,23 @@ jobs:
           install -m 0755 "cargo-near-${target}/cargo-near" "$bin/cargo-near"
           echo "$bin" >> "$GITHUB_PATH"
           PATH="$bin:$PATH" cargo near --version
+      # The reproducible build below needs a Docker daemon that can bind-mount
+      # RUNNER_TEMP. Hosted runners always have one; on a self-hosted runner it
+      # is host setup that lives outside this repo (on the macOS runner: Docker
+      # Desktop running, with the runner's directory under a shared path in
+      # Settings > Resources > File sharing; /Users is shared by default). Fail
+      # here with that recovery step rather than deep inside cargo-near.
+      - name: Check the runner's Docker daemon
+        if: runner.environment == 'self-hosted'
+        run: |
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::No reachable Docker daemon on self-hosted runner '${RUNNER_NAME}'. Start Docker Desktop (or the runner's Docker service) and re-run; the reproducible wasm build runs in a container."
+            exit 1
+          fi
+          if ! docker run --rm -v "$RUNNER_TEMP:/probe:ro" alpine:3 test -d /probe >/dev/null 2>&1; then
+            echo "::error::Docker on '${RUNNER_NAME}' cannot bind-mount ${RUNNER_TEMP}. Add its parent directory to Docker Desktop's Settings > Resources > File sharing and re-run."
+            exit 1
+          fi
       - name: Build in the pinned cargo-near image
         working-directory: contracts/approval/contract
         run: |
