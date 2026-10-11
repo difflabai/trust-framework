@@ -130,6 +130,21 @@ jobs:
             echo "::error::Docker on '${RUNNER_NAME}' cannot bind-mount ${RUNNER_TEMP}. Add its parent directory to Docker Desktop's Settings > Resources > File sharing and re-run."
             exit 1
           fi
+      # Up to 6 runner instances share this Mac's Docker Desktop VM. A run
+      # whose runner died (killed, slept, Docker restarted) skips the
+      # always() cleanup below, and its orphaned emulated build would keep
+      # eating the shared VM's CPU/RAM; only this instance can reclaim it, so
+      # do that before building. Same instance-scoped RUNNER_TEMP filter.
+      - name: Remove orphaned cargo-near build containers
+        if: runner.environment == 'self-hosted'
+        working-directory: ${{ runner.temp }}
+        run: |
+          for id in $(docker ps -aq --filter name=near-verify-rs-); do
+            if docker inspect -f '{{range .Mounts}}{{println .Source}}{{end}}' "$id" 2>/dev/null \
+              | grep -qF "$RUNNER_TEMP/"; then
+              docker rm -f "$id" || true
+            fi
+          done
       - name: Build in the pinned cargo-near image
         working-directory: contracts/approval/contract
         run: |
