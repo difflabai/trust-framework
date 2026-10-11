@@ -44,13 +44,18 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      # A self-hosted runner keeps RUSTUP_HOME across jobs and repos, and
-      # rust-toolchain below runs `rustup default`. Put the previous default
-      # back at the end of the job.
-      - name: Record the rustup default
+      # Each self-hosted runner instance keeps one RUSTUP_HOME across jobs
+      # and repos, and rust-toolchain runs `rustup default`. Other repos'
+      # unpinned cargo builds use that default, and an always() restore
+      # step never runs if the runner dies or the Mac sleeps mid-job. So on
+      # self-hosted, install the pin and select it for this job only.
+      - name: Install the pinned Rust toolchain for this job
         if: runner.environment == 'self-hosted'
-        run: echo "RUSTUP_DEFAULT_BEFORE=$(rustup default 2>/dev/null | cut -d' ' -f1)" >> "$GITHUB_ENV"
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt --component clippy --no-self-update
+          echo "RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        if: runner.environment == 'github-hosted'
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
@@ -68,10 +73,6 @@ jobs:
       - run: cargo test -p approval-core --locked
       - run: cargo test -p approval-core --features borsh --locked
       - run: cargo test -p approval-contract --locked
-      - name: Restore the rustup default
-        if: always() && env.RUSTUP_DEFAULT_BEFORE != ''
-        working-directory: ${{ runner.temp }}
-        run: rustup default "$RUSTUP_DEFAULT_BEFORE"
 
   wasm:
     name: reproducible wasm
@@ -199,13 +200,18 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      # A self-hosted runner keeps RUSTUP_HOME across jobs and repos, and
-      # rust-toolchain below runs `rustup default`. Put the previous default
-      # back at the end of the job.
-      - name: Record the rustup default
+      # Each self-hosted runner instance keeps one RUSTUP_HOME across jobs
+      # and repos, and rust-toolchain runs `rustup default`. Other repos'
+      # unpinned cargo builds use that default, and an always() restore
+      # step never runs if the runner dies or the Mac sleeps mid-job. So on
+      # self-hosted, install the pin and select it for this job only.
+      - name: Install the pinned Rust toolchain for this job
         if: runner.environment == 'self-hosted'
-        run: echo "RUSTUP_DEFAULT_BEFORE=$(rustup default 2>/dev/null | cut -d' ' -f1)" >> "$GITHUB_ENV"
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update
+          echo "RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        if: runner.environment == 'github-hosted'
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
       # rust-cache's post step prunes CARGO_HOME down to this workspace's
@@ -228,7 +234,3 @@ jobs:
         run: |
           ulimit -n 65535
           cargo test -p approval-sandbox-tests --locked -- --nocapture
-      - name: Restore the rustup default
-        if: always() && env.RUSTUP_DEFAULT_BEFORE != ''
-        working-directory: ${{ runner.temp }}
-        run: rustup default "$RUSTUP_DEFAULT_BEFORE"
