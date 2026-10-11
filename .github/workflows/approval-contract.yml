@@ -24,6 +24,9 @@ env:
   CARGO_NEAR_VERSION: "0.22.0"
   # sha256 of cargo-near-x86_64-unknown-linux-gnu.tar.gz for that release.
   CARGO_NEAR_SHA256: "9429064e30a427e96523f539cb255f3688d2345e5000d7d4e4873a8247247d1a"
+  # sha256 of cargo-near-aarch64-apple-darwin.tar.gz, for the self-hosted
+  # macOS runner.
+  CARGO_NEAR_SHA256_MACOS_ARM64: "55bd219c28c6996512a7c3836519f160b27b73a723f087634bf16f8a0bd48c8a"
 
 defaults:
   run:
@@ -32,14 +35,32 @@ defaults:
 jobs:
   check:
     name: fmt, clippy, unit tests
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners are blocked by the org's billing limit, so
+    # vars.CI_RUNNER points every job at the org's self-hosted macOS
+    # (Apple Silicon) runner. Unset, this falls back to GitHub-hosted Linux.
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    # The self-hosted runner is a single machine shared by every repo in the
+    # org; cap each job so a hang doesn't hold it for the 6-hour default.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # A self-hosted runner keeps RUSTUP_HOME across jobs and repos, and
+      # rust-toolchain below runs `rustup default`. Put the previous default
+      # back at the end of the job.
+      - name: Record the rustup default
+        if: runner.environment == 'self-hosted'
+        run: echo "RUSTUP_DEFAULT_BEFORE=$(rustup default 2>/dev/null | cut -d' ' -f1)" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
+      # rust-cache's post step prunes CARGO_HOME down to this workspace's
+      # dependencies, including deleting cargo-installed binaries that were
+      # already there. A self-hosted runner's CARGO_HOME is shared with other
+      # jobs and repos (and already persists), so only use it on
+      # GitHub-hosted runners.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: runner.environment == 'github-hosted'
         with:
           workspaces: contracts/approval
       - run: cargo fmt --all --check
@@ -47,10 +68,17 @@ jobs:
       - run: cargo test -p approval-core --locked
       - run: cargo test -p approval-core --features borsh --locked
       - run: cargo test -p approval-contract --locked
+      - name: Restore the rustup default
+        if: always() && env.RUSTUP_DEFAULT_BEFORE != ''
+        working-directory: ${{ runner.temp }}
+        run: rustup default "$RUSTUP_DEFAULT_BEFORE"
 
   wasm:
     name: reproducible wasm
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    # Longer than the others: on the Mac the amd64 build image runs under
+    # emulation.
+    timeout-minutes: 45
     steps:
       # Build the PR head commit itself (not the merge commit), so the
       # recorded source snapshot is a commit that exists on a branch.
@@ -63,16 +91,76 @@ jobs:
       - name: Install cargo-near
         working-directory: ${{ runner.temp }}
         run: |
-          tarball=cargo-near-x86_64-unknown-linux-gnu.tar.gz
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) target=x86_64-unknown-linux-gnu sha256=$CARGO_NEAR_SHA256 ;;
+            macOS-ARM64) target=aarch64-apple-darwin sha256=$CARGO_NEAR_SHA256_MACOS_ARM64 ;;
+            *) echo "::error::No pinned cargo-near build for ${RUNNER_OS}-${RUNNER_ARCH}"; exit 1 ;;
+          esac
+          tarball=cargo-near-${target}.tar.gz
           curl --proto '=https' --tlsv1.2 -LsSfO \
             "https://github.com/near/cargo-near/releases/download/cargo-near-v${CARGO_NEAR_VERSION}/${tarball}"
-          echo "${CARGO_NEAR_SHA256}  ${tarball}" | sha256sum --check --strict
+          if [ "$RUNNER_OS" = macOS ]; then
+            # Darwin's sha256sum has no --check --strict.
+            echo "${sha256}  ${tarball}" | shasum -a 256 --check --strict
+          else
+            echo "${sha256}  ${tarball}" | sha256sum --check --strict
+          fi
           tar xzf "$tarball"
-          install -m 0755 cargo-near-x86_64-unknown-linux-gnu/cargo-near "$HOME/.cargo/bin/cargo-near"
-          cargo near --version
+          # Not $HOME/.cargo/bin: on a self-hosted runner that is shared by
+          # every job and repo and outlives this one.
+          bin="$RUNNER_TEMP/cargo-near-bin"
+          mkdir -p "$bin"
+          install -m 0755 "cargo-near-${target}/cargo-near" "$bin/cargo-near"
+          echo "$bin" >> "$GITHUB_PATH"
+          PATH="$bin:$PATH" cargo near --version
+      # The reproducible build below needs a Docker daemon that can bind-mount
+      # RUNNER_TEMP. Hosted runners always have one; on a self-hosted runner it
+      # is host setup that lives outside this repo (on the macOS runner: Docker
+      # Desktop running, with the runner's directory under a shared path in
+      # Settings > Resources > File sharing; /Users is shared by default). Fail
+      # here with that recovery step rather than deep inside cargo-near.
+      - name: Check the runner's Docker daemon
+        if: runner.environment == 'self-hosted'
+        run: |
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::No reachable Docker daemon on self-hosted runner '${RUNNER_NAME}'. Start Docker Desktop (or the runner's Docker service) and re-run; the reproducible wasm build runs in a container."
+            exit 1
+          fi
+          if ! docker run --rm -v "$RUNNER_TEMP:/probe:ro" alpine:3 test -d /probe >/dev/null 2>&1; then
+            echo "::error::Docker on '${RUNNER_NAME}' cannot bind-mount ${RUNNER_TEMP}. Add its parent directory to Docker Desktop's Settings > Resources > File sharing and re-run."
+            exit 1
+          fi
       - name: Build in the pinned cargo-near image
         working-directory: contracts/approval/contract
-        run: cargo near build reproducible-wasm
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            # Docker Desktop on Apple Silicon: the pinned image is
+            # linux/amd64 only, so it runs under emulation (same image
+            # digest, same toolchain, same wasm).
+            export DOCKER_DEFAULT_PLATFORM=linux/amd64
+          fi
+          if [ "${RUNNER_ENVIRONMENT:-}" = self-hosted ]; then
+            # cargo-near bind-mounts a temporary clone of the repo into the
+            # container; keep that clone under RUNNER_TEMP, which the runner
+            # cleans, Docker Desktop shares, and the cleanup step below
+            # matches on.
+            export TMPDIR="$RUNNER_TEMP"
+          fi
+          cargo near build reproducible-wasm
+      # A cancelled run (concurrency cancels superseded pushes) can leave
+      # cargo-near's build container running on a persistent self-hosted
+      # runner. Remove only containers whose bind mount is this job's
+      # RUNNER_TEMP.
+      - name: Remove leftover cargo-near build containers
+        if: always() && runner.environment == 'self-hosted'
+        working-directory: ${{ runner.temp }}
+        run: |
+          for id in $(docker ps -aq --filter name=near-verify-rs-); do
+            if docker inspect -f '{{range .Mounts}}{{println .Source}}{{end}}' "$id" 2>/dev/null \
+              | grep -qF "$RUNNER_TEMP/"; then
+              docker rm -f "$id" || true
+            fi
+          done
       - name: Report the wasm hash
         run: |
           wasm=target/near/approval_contract/approval_contract.wasm
@@ -90,15 +178,28 @@ jobs:
   sandbox:
     name: sandbox tests
     needs: wasm
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      # A self-hosted runner keeps RUSTUP_HOME across jobs and repos, and
+      # rust-toolchain below runs `rustup default`. Put the previous default
+      # back at the end of the job.
+      - name: Record the rustup default
+        if: runner.environment == 'self-hosted'
+        run: echo "RUSTUP_DEFAULT_BEFORE=$(rustup default 2>/dev/null | cut -d' ' -f1)" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
+      # rust-cache's post step prunes CARGO_HOME down to this workspace's
+      # dependencies, including deleting cargo-installed binaries that were
+      # already there. A self-hosted runner's CARGO_HOME is shared with other
+      # jobs and repos (and already persists), so only use it on
+      # GitHub-hosted runners.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: runner.environment == 'github-hosted'
         with:
           workspaces: contracts/approval
           key: sandbox
@@ -112,3 +213,7 @@ jobs:
         run: |
           ulimit -n 65535
           cargo test -p approval-sandbox-tests --locked -- --nocapture
+      - name: Restore the rustup default
+        if: always() && env.RUSTUP_DEFAULT_BEFORE != ''
+        working-directory: ${{ runner.temp }}
+        run: rustup default "$RUSTUP_DEFAULT_BEFORE"
