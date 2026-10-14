@@ -1,14 +1,18 @@
 name: approval-contract
 
+# Docs-only changes (*.md: no crate includes one, so they cannot change the
+# wasm or a test) skip the run.
 on:
   push:
     branches: [main]
     paths:
       - "contracts/approval/**"
+      - "!contracts/approval/**/*.md"
       - ".github/workflows/approval-contract.yml"
   pull_request:
     paths:
       - "contracts/approval/**"
+      - "!contracts/approval/**/*.md"
       - ".github/workflows/approval-contract.yml"
 
 permissions:
