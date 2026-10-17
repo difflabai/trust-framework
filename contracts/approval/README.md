@@ -65,14 +65,22 @@ agent key ──request_action(action)──► Pending ──approve(id, action
   requests, so a looping or compromised agent can't drain the contract's
   storage balance. Approving or rejecting frees a slot. Rotating the key
   (revoke, then register) clears the backlog by voiding it.
+- **ed25519 and secp256k1 keys only, for now.** `add_agent` and
+  `add_approver` refuse ML-DSA-65 keys. A 1952-byte ML-DSA-65 key prints as
+  about 2.6 KB, and with one on both the agent and the approver side the
+  worst-case `action_approved` event is 18,256 bytes, over NEAR's 16 KiB
+  per-receipt log limit: that approver could never approve a maximum-size
+  request. Supporting ML-DSA-65 needs more work first, for example a shorter
+  event (key hashes or registration ids instead of full keys) or a lower
+  action limit for such keys, re-checked against the 16 KiB limit.
 
 ## API
 
 | Method | Caller | Effect |
 |---|---|---|
 | `new(owner_id)` | contract account (init) | Sets the key administrator. |
-| `add_agent(account_id, public_key)` | owner | Registers an agent key and emits `key_added`. |
-| `add_approver(account_id, public_key)` | owner | Registers an approver key and emits `key_added`. |
+| `add_agent(account_id, public_key)` | owner | Registers an agent key (ed25519 or secp256k1) and emits `key_added`. |
+| `add_approver(account_id, public_key)` | owner | Registers an approver key (ed25519 or secp256k1) and emits `key_added`. |
 | `revoke_key(public_key)` | owner | Removes a key, records when, and emits `key_revoked`. |
 | `request_action(action) -> u64` | agent key | Records a pending request (`action` is 1 to 2048 bytes) and emits `approval_requested`. Returns `request_id`. |
 | `approve(request_id, action) -> ApprovalProofView` | approver key | Approves if `action` matches, and emits `action_approved`. |
@@ -92,7 +100,11 @@ Approvers can discover new requests without an indexer by polling
 events needs an indexer, since NEAR RPC has no log query.
 
 Failed calls panic with a message from `ApprovalError::as_str`, and every
-guard runs before any write. NEAR reverts all state changes of a failed
+guard runs before any write. The one shell-level guard: `add_agent` and
+`add_approver` refuse ML-DSA-65 keys (`"ML-DSA-65 keys are not supported"`,
+checked after the owner check), because with such a key on both sides the
+worst-case `action_approved` line would exceed NEAR's 16 KiB log limit and
+that request could never be approved. NEAR reverts all state changes of a failed
 receipt. A receipt can still fail **after** its event was logged, for
 example by running out of gas while state is written, or with
 `LackBalanceForState`. Logs of failed receipts remain visible, so event
@@ -138,9 +150,10 @@ revocations that happen later. `key_revoked` tells an indexer that the
 Nanosecond timestamps are strings because they exceed JSON's safe integer
 range.
 
-The worst case (64-character account ids, secp256k1 keys and a 2048-byte
-action of control characters, each JSON-escaped to six bytes) logs about
-13.1 KB per receipt, under NEAR's 16 KiB limit; the sandbox tests check this.
+The worst case (64-character account ids, secp256k1 keys, the longest
+accepted, and a 2048-byte action of control characters, each JSON-escaped to
+six bytes) logs about 13.1 KB per receipt, under NEAR's 16 KiB limit; the
+sandbox tests check this.
 
 ## Verifying a proof off-chain
 
