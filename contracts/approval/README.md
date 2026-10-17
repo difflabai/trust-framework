@@ -65,6 +65,14 @@ agent key ──request_action(action)──► Pending ──approve(id, action
   requests, so a looping or compromised agent can't drain the contract's
   storage balance. Approving or rejecting frees a slot. Rotating the key
   (revoke, then register) clears the backlog by voiding it.
+- **ed25519 and secp256k1 keys only, for now.** `add_agent` and
+  `add_approver` refuse ML-DSA-65 keys. A 1952-byte ML-DSA-65 key prints as
+  about 2.6 KB, and with one on both the agent and the approver side the
+  worst-case `action_approved` event is 18,256 bytes, over NEAR's 16 KiB
+  per-receipt log limit: that approver could never approve a maximum-size
+  request. Supporting ML-DSA-65 needs more work first, for example a shorter
+  event (key hashes or registration ids instead of full keys) or a lower
+  action limit for such keys, re-checked against the 16 KiB limit.
 
 ## API
 
