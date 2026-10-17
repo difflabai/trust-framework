@@ -25,7 +25,7 @@ use approval_core::{
 };
 use near_sdk::json_types::U64;
 use near_sdk::store::LookupMap;
-use near_sdk::{env, near, AccountId, PanicOnDefault, PublicKey};
+use near_sdk::{env, near, AccountId, CurveType, PanicOnDefault, PublicKey};
 
 type Request = ActionRequest<AccountId, PublicKey>;
 type Proof = ApprovalProof<AccountId, PublicKey>;
@@ -339,6 +339,14 @@ impl ApprovalContract {
 impl ApprovalContract {
     fn add_principal(&mut self, account_id: AccountId, public_key: PublicKey, role: Role) {
         let caller = env::predecessor_account_id();
+        // A 1952-byte ML-DSA-65 key prints as about 2.6 KB of base58. With one
+        // on both the agent and the approver side, a 2048-byte action's
+        // `action_approved` line exceeds NEAR's 16 KiB log limit, so that
+        // approver could never approve the request. Refused after the owner
+        // check (non-owners still get NotOwner first) and before any write.
+        if caller == self.owner && public_key.curve_type() == CurveType::MLDSA65 {
+            env::panic_str(UNSUPPORTED_KEY_TYPE);
+        }
         let added = ok(approval_core::add_principal(
             self,
             &caller,
@@ -474,6 +482,9 @@ fn now() -> BlockTime {
         timestamp_ns: env::block_timestamp(),
     }
 }
+
+/// Panic message of `add_agent` / `add_approver` for an ML-DSA-65 key.
+pub const UNSUPPORTED_KEY_TYPE: &str = "ML-DSA-65 keys are not supported";
 
 fn ok<T>(result: Result<T, ApprovalError>) -> T {
     result.unwrap_or_else(|e| env::panic_str(e.as_str()))
@@ -879,6 +890,32 @@ mod tests {
         c.add_approver(accounts(4), pk(OTHER_PK));
         c.revoke_key(pk(OTHER_PK));
         assert_eq!(c.get_principal(pk(OTHER_PK)), None);
+    }
+
+    fn mldsa65_key() -> PublicKey {
+        PublicKey::from_parts(CurveType::MLDSA65, vec![7; 1952]).unwrap()
+    }
+
+    #[test]
+    #[should_panic(expected = "ML-DSA-65 keys are not supported")]
+    fn mldsa65_agent_key_is_refused() {
+        let mut c = setup();
+        c.add_agent(accounts(3), mldsa65_key());
+    }
+
+    #[test]
+    #[should_panic(expected = "ML-DSA-65 keys are not supported")]
+    fn mldsa65_approver_key_is_refused() {
+        let mut c = setup();
+        c.add_approver(accounts(3), mldsa65_key());
+    }
+
+    #[test]
+    #[should_panic(expected = "only the owner can manage keys")]
+    fn mldsa65_key_from_a_non_owner_fails_not_owner_first() {
+        let mut c = setup();
+        signed_by(accounts(3), OTHER_PK, 2);
+        c.add_agent(accounts(3), mldsa65_key());
     }
 
     #[test]
