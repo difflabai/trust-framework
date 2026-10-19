@@ -636,10 +636,20 @@ where
     let end = from_index
         .saturating_add(limit.min(MAX_PAGE_SIZE))
         .min(store.approval_count());
-    (from_index..end)
-        .filter_map(|i| store.approved_request_id(i))
-        .filter_map(|id| approval(store, id))
-        .collect()
+    // A plain loop rather than an iterator chain: Verus (formalver M5) has
+    // no specification for `filter_map`, and this keeps the verified copy
+    // token-for-token identical to this code.
+    let mut out = Vec::new();
+    let mut i = from_index;
+    while i < end {
+        if let Some(id) = store.approved_request_id(i) {
+            if let Some(p) = approval(store, id) {
+                out.push(p);
+            }
+        }
+        i += 1;
+    }
+    out
 }
 
 /// In-memory [`Store`] for tests and verification harnesses.
