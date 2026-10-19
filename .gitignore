@@ -5,3 +5,12 @@ __pycache__/
 dist/
 build/
 target/
+
+# NEAR operations (scripts/near): secrets and generated state
+.env
+.env.*
+!.env.example
+.near-credentials*/
+scripts/near/.sandbox/
+scripts/near/.cache/
+scripts/near/deployments/sandbox/
