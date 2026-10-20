@@ -636,18 +636,26 @@ where
     let end = from_index
         .saturating_add(limit.min(MAX_PAGE_SIZE))
         .min(store.approval_count());
-    // A plain loop rather than an iterator chain: Verus (formalver M5) has
-    // no specification for `filter_map`, and this keeps the verified copy
-    // token-for-token identical to this code.
+    // A loop rather than an iterator chain: Verus (formalver M5) has no
+    // specification for `filter_map`. Each pass of the outer loop pushes one
+    // proof or ends the page, and the inner loop skips slots without one:
+    // under Kani (formalver), a pass that skips without pushing leaves the
+    // page length symbolic, and CBMC then writes each later proof at a
+    // symbolic offset, which ran the read harnesses out of memory.
     let mut out = Vec::new();
     let mut i = from_index;
-    while i < end {
-        if let Some(id) = store.approved_request_id(i) {
-            if let Some(p) = approval(store, id) {
-                out.push(p);
+    loop {
+        let mut found = None;
+        while found.is_none() && i < end {
+            if let Some(id) = store.approved_request_id(i) {
+                found = approval(store, id);
             }
+            i += 1;
         }
-        i += 1;
+        match found {
+            Some(p) => out.push(p),
+            None => break,
+        }
     }
     out
 }
