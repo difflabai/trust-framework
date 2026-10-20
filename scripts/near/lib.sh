@@ -159,7 +159,7 @@ near_tmp_init() {
 NEAR_ENV_KEYS="NEAR_NETWORK NEAR_RPC_URL NEAR_EXPLORER_TX_URL NEAR_ACCOUNT_ID NEAR_PRIVATE_KEY
 NEAR_PUBLIC_KEY NEAR_CREDENTIALS_DIR NEAR_DEPLOYMENTS_DIR NEAR_CLI_BIN NEAR_CACHE_DIR
 APPROVAL_CONTRACT_ID APPROVAL_OWNER_ID APPROVAL_INITIAL_BALANCE APPROVAL_WASM APPROVAL_PRINCIPAL_BALANCE
-SANDBOX_DIR SANDBOX_RPC_PORT NEAR_FAUCET_URL"
+SANDBOX_DIR SANDBOX_RPC_PORT NEAR_FAUCET_URL SPEC_AGENT_ID SPEC_AGENT_PRIVATE_KEY"
 NEAR_ENV_KEYS=$(printf '%s' "$NEAR_ENV_KEYS" | tr '\n' ' ')
 NEAR_PRIVATE_KEY_FROM_FILE=0
 load_env_file() {
@@ -213,7 +213,7 @@ _load_env_file() {
       *)
         case $key in
           NEAR_ALLOW_MAINNET | NEAR_ALLOW_INSECURE_RPC) warn "$file:$n: $key is ignored in a file; set it in the environment" ;;
-          NEAR_* | APPROVAL_* | SANDBOX_*) warn "$file:$n: unknown setting $key (ignored)" ;;
+          NEAR_* | APPROVAL_* | SANDBOX_* | SPEC_*) warn "$file:$n: unknown setting $key (ignored)" ;;
         esac
         continue
         ;;

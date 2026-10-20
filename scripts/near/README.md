@@ -64,6 +64,8 @@ different file.
 | `APPROVAL_CONTRACT_ID` | `approvals.<NEAR_ACCOUNT_ID>` | The contract account. |
 | `APPROVAL_OWNER_ID` | `NEAR_ACCOUNT_ID` | Passed to `new(owner_id)`; signs `add_agent`/`add_approver`/`revoke_key`. |
 | `APPROVAL_INITIAL_BALANCE` | computed (3 NEAR) | Balance a new contract account starts with. |
+| `SPEC_AGENT_ID` | `spec-agent` | Agent that `submit-spec-packet.sh` files packet items as (short name or account id). |
+| `SPEC_AGENT_PRIVATE_KEY` | (none) | Optional `ed25519:...` agent key of `SPEC_AGENT_ID`, registered on the contract; otherwise the stored key is used. |
 | `APPROVAL_PRINCIPAL_BALANCE` | `0.5` | Balance of accounts `new-principal.sh` creates (their own gas). |
 | `APPROVAL_WASM` | build-wasm.sh's output | Wasm for `deploy.sh`/`status.sh` (`--wasm PATH` is relative to the current directory instead). |
 | `NEAR_CREDENTIALS_DIR` | `.near-credentials` | Principal key files, `<dir>/<network>/<account>.<role>.json` (0600, gitignored). |
@@ -119,6 +121,7 @@ seconds).
 | `request-action.sh <agent> <action>` | Signs `request_action` with the agent's stored key (or `--key-file PATH`); prints the request id. `--action-file PATH` (`-` for stdin) reads the action byte for byte; an action starting with `-` goes after `--`. |
 | `approve.sh <approver> <request_id> <action>` | Signs `approve` with the approver's stored key (or `--key-file PATH`); prints the proof. Checks first that the request is pending, that the action matches exactly, and that the agent isn't the approver's own account (`--skip-checks` sends anyway). The action can come from `--action-file PATH`, or, after reviewing it, from `--action-from-request`. |
 | `reject.sh <approver> <request_id>` | Signs `reject` (or with `--key-file PATH`); prints the rejection. |
+| `submit-spec-packet.sh [--packet PATH] [--item ID]... [--setup-agent] [--dry-run] [--yes]` | Files each item of a spec review packet (default `ui/spec-approvals/packets/near-approval.json`) as one request for review in [`ui/spec-approvals/`](../../ui/spec-approvals/README.md). Each action names the item and the SHA-256 of its text (`spec_packet.py`). Idempotent: items that already have a pending, approved or rejected request are skipped, and only items with void requests are filed again. The agent (`--agent`, `SPEC_AGENT_ID`, default `spec-agent`) signs with `--key-file`, `SPEC_AGENT_PRIVATE_KEY` from `.env`, or its stored key. `--setup-agent` creates and registers the stored key with `new-principal.sh` if it is missing. |
 | `smoke-test.sh [--cleanup]` | End-to-end check: ensures `smoke-agent` and `smoke-approver` principals, requests, approves and rejects, and asserts `get_approval`, `get_request` and `get_rejection`. `--cleanup` revokes their keys and deletes both accounts. |
 | `transfer.sh <receiver> <amount> [--yes]` | Sends NEAR from `NEAR_ACCOUNT_ID`, e.g. to top up the contract's storage balance. |
 | `faucet-fund.sh [<receiver>] [--rounds N]` | Testnet only: tops up an existing account (default `NEAR_ACCOUNT_ID`) with 10 NEAR per round from the testnet faucet, which only funds new accounts: each round has the faucet create a throwaway `tf-faucet-….testnet` account and then deletes it with the receiver as beneficiary. Needs no `NEAR_PRIVATE_KEY`. If a deletion fails, the throwaway key is kept and `--recover KEYFILE` finishes the round. Uses `NEAR_FAUCET_URL` (default `https://helper.testnet.near.org/account`; near-cli's own default host fails TLS). |
@@ -247,7 +250,7 @@ voids the old key's pending requests for good.
 A real approver should not use a key from this repo's credentials dir:
 generate it elsewhere, register it with `add-approver.sh`, and sign with
 `approve.sh <approver> <id> --action-file action.txt --key-file ~/keys/reviewer.json`.
-To sign from a browser wallet instead, open [`ui/approvals/`](../../ui/approvals/README.md)
+To sign from a browser wallet instead, open [`ui/approvals/`](../../ui/approvals/README.md) (or [`ui/spec-approvals/`](../../ui/spec-approvals/README.md) for a spec review packet)
 and register the wallet's public key with `add-approver.sh … --force`
 (a full-access key; the page cannot select a different key than the one
 the wallet connects with).
@@ -330,6 +333,7 @@ for commit `081a3a6`).
 | Path | |
 |---|---|
 | `lib.sh` | Shared config loading, hermetic near-cli wrapper, RPC helpers. Sourced by every script. |
+| `spec_packet.py` | Stdlib helper for spec review packets: canonical item hash, request action, and the submission plan. |
 | `near_util.py` | Stdlib helper: JSON-RPC queries (with retry on rate limits), base58, key files, code hashes, exact yoctoNEAR arithmetic. |
 | `deployments/<network>/<contract>.json` | Deployment records (testnet: commit them). |
 | `.sandbox/`, `.cache/` | Local sandbox state and the cargo-near download cache (gitignored). |

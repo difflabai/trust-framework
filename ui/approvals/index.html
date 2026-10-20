@@ -6,117 +6,8 @@
   <meta name="robots" content="noindex">
   <meta name="description" content="Review pending requests and sign approve or reject on the NEAR approval contract.">
   <title>Approvals</title>
+  <link rel="stylesheet" href="../shared/base.css">
   <style>
-    :root {
-      color-scheme: light dark;
-      --text: CanvasText;
-      --bg: Canvas;
-      --muted: GrayText;
-      --line: color-mix(in srgb, CanvasText 22%, Canvas);
-      --soft: color-mix(in srgb, CanvasText 6%, Canvas);
-      --warn: color-mix(in srgb, #b45309 82%, CanvasText);
-      --bad: color-mix(in srgb, #b91c1c 78%, CanvasText);
-      --ok: color-mix(in srgb, #15803d 72%, CanvasText);
-    }
-    * { box-sizing: border-box; }
-    body {
-      max-width: 42rem;
-      margin: 2rem auto 4rem;
-      padding: 0 1.25rem;
-      background: var(--bg);
-      color: var(--text);
-      font: 1.05rem/1.5 system-ui, sans-serif;
-    }
-    h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 0.25rem; }
-    h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
-    p, dl, ul { margin: 0.75rem 0; }
-    a { color: LinkText; }
-    a:focus-visible, button:focus-visible, summary:focus-visible {
-      outline: 2px solid LinkText;
-      outline-offset: 2px;
-    }
-    header { margin-bottom: 1.75rem; }
-    .lede { color: var(--muted); margin-top: 0; }
-    .meta {
-      display: grid;
-      grid-template-columns: 7.5rem 1fr;
-      gap: 0.2rem 0.75rem;
-      margin: 1rem 0;
-      font-size: 0.95rem;
-    }
-    .meta dt { color: var(--muted); }
-    .meta dd { margin: 0; overflow-wrap: anywhere; }
-    .mono, pre, code, .key {
-      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: 0.86rem;
-    }
-    .ok { color: var(--ok); }
-    .warn { color: var(--warn); }
-    .bad { color: var(--bad); }
-    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    button, .settings button, select, input {
-      font: inherit;
-      color: ButtonText;
-      background: ButtonFace;
-      border: 1px solid var(--line);
-      border-radius: 0.3rem;
-      padding: 0.4rem 0.75rem;
-      min-height: 2.5rem;
-    }
-    button { cursor: pointer; }
-    button:disabled { cursor: not-allowed; opacity: 0.55; }
-    button.primary { font-weight: 650; }
-    button.danger { color: var(--bad); }
-    .status {
-      padding: 0.6rem 0.75rem;
-      background: var(--soft);
-      border-left: 3px solid var(--line);
-    }
-    .status.warn { border-left-color: var(--warn); }
-    .status.bad { border-left-color: var(--bad); }
-    article {
-      border: 1px solid var(--line);
-      border-radius: 0.4rem;
-      padding: 0.9rem 1rem 1rem;
-      margin: 0 0 0.85rem;
-    }
-    article header { margin: 0 0 0.4rem; }
-    article h3 { font-size: 1rem; margin: 0; }
-    .when, .agent { color: var(--muted); font-size: 0.95rem; }
-    pre.action {
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      unicode-bidi: isolate;
-      direction: ltr;
-      margin: 0.75rem 0;
-      padding: 0.75rem;
-      background: var(--soft);
-      border: 1px solid var(--line);
-    }
-    pre.hex {
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      max-height: 12rem;
-      overflow: auto;
-      margin: 0.4rem 0 0;
-    }
-    details { margin: 0.6rem 0; }
-    summary { cursor: pointer; }
-    .empty { color: var(--muted); }
-    dialog {
-      color: var(--text);
-      background: var(--bg);
-      border: 1px solid var(--line);
-      border-radius: 0.5rem;
-      max-width: 36rem;
-      width: calc(100% - 2rem);
-      padding: 1.1rem 1.2rem 1.2rem;
-    }
-    dialog::backdrop { background: color-mix(in srgb, CanvasText 35%, transparent); }
-    dialog h2 { margin-top: 0; }
-    dialog h3 { font-size: 1rem; margin: 0.9rem 0 0.25rem; }
-    label { display: block; margin: 0.7rem 0 0.2rem; }
-    input, select { width: 100%; }
     #show-form { margin: 0 0 1rem; }
     #show-form label { display: inline; margin: 0; }
     #show-id { width: 8rem; }
@@ -125,8 +16,6 @@
     .filters select, .filters input { width: auto; }
     #search { flex: 1 1 12rem; min-width: 12rem; }
     .pager { margin: 0.25rem 0 1.5rem; }
-    footer { margin-top: 2.5rem; color: var(--muted); font-size: 0.95rem; }
-    footer .settings { color: var(--text); }
   </style>
 </head>
 <body>
@@ -259,19 +148,26 @@
     src="https://cdn.jsdelivr.net/gh/azbang/near-connect@de0f08af1e07c19fe5f80070383231d16ef924f6/cdn/hot-connect.iife.js"
     integrity="sha384-6eNPlV+Bf92wTtH7ZfZE8sZPdohJ84VDXuVVegFjBvJsGWE6BXTT1he2jKjalJ9L"
     crossorigin="anonymous"></script>
+  <script src="../shared/approval-kit.js"></script>
   <script>
 (function () {
   "use strict";
 
-  var DEFAULT_CONTRACT = "approvals.difflabai.testnet";
-  var DEFAULT_HASH = "5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv";
-  var DEFAULT_OWNER = "difflabai.testnet";
+  // Shared with ui/spec-approvals: ../shared/approval-kit.js.
+  var K = window.ApprovalKit;
+  var DEFAULT_CONTRACT = K.DEFAULT_CONTRACT;
+  var DEFAULT_HASH = K.DEFAULT_HASH;
+  var DEFAULT_OWNER = K.DEFAULT_OWNER;
   var PAGE = 50;
-  var GAS = "30000000000000";
-  var ACCOUNT_RE = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
+  var readConfig = K.readConfig, defaultRpc = K.defaultRpc, rpcAllowed = K.rpcAllowed, accountOk = K.accountOk;
+  var el = K.el, text = K.text, errorText = K.errorText, isCancel = K.isCancel, formatNs = K.formatNs;
+  var suspiciousCodePoints = K.suspiciousCodePoints, hexDump = K.hexDump, byteLength = K.byteLength;
+  var shortKey = K.shortKey, mapPool = K.mapPool;
 
   var params = new URLSearchParams(location.search);
   var cfg = readConfig(params);
+  var api = K.client(cfg);
+  var rpcQuery = api.rpcQuery, view = api.view, explorerAccount = api.explorerAccount, explorerTx = api.explorerTx;
   var requests = new Map();
   var approvals = new Map();
   var requestCount = null;
@@ -300,63 +196,6 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  function readConfig(q) {
-    var network = q.get("network") || "testnet";
-    if (network !== "testnet" && network !== "mainnet") network = "testnet";
-    var contract = (q.get("contract") || DEFAULT_CONTRACT).trim().toLowerCase();
-    var rpc = (q.get("rpc") || defaultRpc(network)).trim();
-    var codeHash = q.has("code_hash") ? q.get("code_hash").trim() : (contract === DEFAULT_CONTRACT ? DEFAULT_HASH : "");
-    return { network: network, contract: contract, rpc: rpc, codeHash: codeHash };
-  }
-
-  function defaultRpc(network) {
-    return network === "mainnet" ? "https://rpc.mainnet.near.org" : "https://test.rpc.fastnear.com";
-  }
-
-  function rpcAllowed(url) {
-    try {
-      var u = new URL(url);
-      if (u.protocol === "https:") return true;
-      return u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function accountOk(id) {
-    return id.length >= 2 && id.length <= 64 && ACCOUNT_RE.test(id);
-  }
-
-  function explorerAccount(id) {
-    var host = cfg.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
-    return host + "/address/" + encodeURIComponent(id);
-  }
-
-  function explorerTx(hash) {
-    var host = cfg.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
-    return host + "/txns/" + encodeURIComponent(hash);
-  }
-
-  function el(tag, attrs, children) {
-    var node = document.createElement(tag);
-    if (attrs) {
-      Object.keys(attrs).forEach(function (k) {
-        var v = attrs[k];
-        if (v == null || v === false) return;
-        if (k === "class") node.className = v;
-        else if (k.slice(0, 2) === "on" && typeof v === "function") node.addEventListener(k.slice(2), v);
-        else if (v === true) node.setAttribute(k, "");
-        else node.setAttribute(k, String(v));
-      });
-    }
-    (children || []).forEach(function (child) {
-      node.append(child instanceof Node ? child : document.createTextNode(child == null ? "" : String(child)));
-    });
-    return node;
-  }
-
-  function text(s) { return document.createTextNode(s == null ? "" : String(s)); }
-
   function setBanner(message, kind) {
     var banner = $("banner");
     banner.hidden = !message;
@@ -364,128 +203,8 @@
     banner.className = "status" + (kind ? " " + kind : "");
   }
 
-  function rpcError(err) {
-    if (err == null) return "RPC error";
-    if (typeof err === "string") return err;
-    var data = err.data;
-    if (typeof data === "string" && data) return data;
-    if (err.cause && err.cause.name) return err.cause.name + (err.message ? ": " + err.message : "");
-    return err.message || "RPC error";
-  }
-
-  function errorText(err) {
-    if (err == null) return "Unknown error";
-    if (typeof err === "string") return err;
-    var raw = err instanceof Error ? err.message : "";
-    var seen = new Set();
-    var texts = [];
-    function walk(v, depth) {
-      if (v == null || depth > 6) return;
-      if (typeof v === "string") {
-        if (v && texts.indexOf(v) === -1) texts.push(v);
-        return;
-      }
-      if (typeof v !== "object" || seen.has(v)) return;
-      seen.add(v);
-      ["message", "ExecutionError", "kind", "error", "panic_msg"].forEach(function (k) {
-        if (v[k] != null) walk(v[k], depth + 1);
-      });
-      Object.keys(v).forEach(function (k) { walk(v[k], depth + 1); });
-    }
-    walk(err, 0);
-    var panic = texts.filter(function (t) { return t.indexOf("Smart contract panicked") !== -1; })[0];
-    if (panic) {
-      var m = panic.match(/Smart contract panicked: ([^"]+)/);
-      return m ? m[1] : panic;
-    }
-    return raw || texts[0] || "The wallet did not complete the transaction.";
-  }
-
-  function isCancel(err) {
-    var raw = err instanceof Error ? err.message : (typeof err === "string" ? err : "");
-    var t = raw.toLowerCase();
-    return t === "user rejected" || t.indexOf("wallet closed") !== -1 || t.indexOf("user cancelled") !== -1 || t.indexOf("user canceled") !== -1 || t.indexOf("rejected by user") !== -1;
-  }
-
-  async function rpcQuery(params) {
-    var res = await fetch(cfg.rpc, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: "approvals-ui", method: "query", params: params }),
-      signal: AbortSignal.timeout(20000)
-    });
-    if (!res.ok) throw new Error("RPC HTTP " + res.status);
-    var json = await res.json();
-    if (json.error) throw new Error(rpcError(json.error));
-    return json.result;
-  }
-
-  async function view(method, args) {
-    var result = await rpcQuery({
-      request_type: "call_function",
-      finality: "final",
-      account_id: cfg.contract,
-      method_name: method,
-      args_base64: btoa(JSON.stringify(args))
-    });
-    var bytes = new Uint8Array(result.result || []);
-    var decoded = new TextDecoder().decode(bytes);
-    if (!decoded) return null;
-    return JSON.parse(decoded);
-  }
-
-  function formatNs(ns) {
-    var s = String(ns == null ? "" : ns);
-    if (!/^\d+$/.test(s)) return s || "unknown time";
-    var ms = s.length > 6 ? Number(s.slice(0, -6)) : 0;
-    var date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return s;
-    return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  }
-
-  function suspiciousCodePoints(action) {
-    var found = [];
-    for (var ch of action) {
-      var cp = ch.codePointAt(0);
-      var bad = (cp < 0x20 && cp !== 0x09 && cp !== 0x0a && cp !== 0x0d) || cp === 0x7f || (cp >= 0x80 && cp <= 0x9f) || (cp >= 0x200b && cp <= 0x200f) || (cp >= 0x202a && cp <= 0x202e) || (cp >= 0x2066 && cp <= 0x2069) || cp === 0xfeff || cp === 0x00ad || cp === 0x2028 || cp === 0x2029;
-      if (bad && found.indexOf(cp) === -1) found.push(cp);
-    }
-    return found;
-  }
-
-  function hexDump(action) {
-    var bytes = new TextEncoder().encode(action);
-    var lines = [];
-    for (var i = 0; i < bytes.length; i += 16) {
-      var slice = bytes.slice(i, i + 16);
-      var hex = Array.from(slice).map(function (b) { return b.toString(16).padStart(2, "0"); }).join(" ");
-      lines.push(i.toString(16).padStart(4, "0") + "  " + hex);
-    }
-    return lines.join("\n");
-  }
-
-  function byteLength(action) {
-    return new TextEncoder().encode(action).length;
-  }
-
-  function txHash(result) {
-    if (!result) return null;
-    if (typeof result === "string") return result;
-    return (result.transaction && result.transaction.hash) || result.transactionHash || (result.transaction_outcome && result.transaction_outcome.id) || null;
-  }
-
-  function shortKey(key) {
-    if (!key) return "";
-    if (key.length <= 22) return key;
-    return key.slice(0, 14) + "…" + key.slice(-6);
-  }
-
   function signingAllowed() {
-    if (!cfg.codeOk) return "Signing is disabled until the contract code hash matches the expected hash.";
-    if (!session) return "Connect the wallet that holds your approver key.";
-    if (!session.principal || session.principal.role !== "approver") return "This key is not a registered approver key.";
-    if (session.principal.account_id !== session.accountId) return "The registered key is bound to a different account.";
-    return "";
+    return api.signingBlock(session);
   }
 
   function renderMeta() {
@@ -819,15 +538,8 @@
     $("approvals-oldest").disabled = scanning ? !(approvalScan && !approvalScan.done) : !older;
   }
 
-  async function copyAction(action, button) {
-    var original = button.textContent;
-    try {
-      await navigator.clipboard.writeText(action);
-      button.textContent = "Copied";
-    } catch (e) {
-      button.textContent = "Copy failed";
-    }
-    setTimeout(function () { button.textContent = original; }, 1500);
+  function copyAction(action, button) {
+    return K.copyText(action, button);
   }
 
   function openShow(req) {
@@ -923,28 +635,9 @@
     renderLists();
     setBanner(kind === "approve" ? "Checking the request, then asking the wallet to sign approve…" : "Checking the request, then asking the wallet to sign reject…", "");
     try {
-      var fresh = await view("get_request", { request_id: id });
-      if (!fresh) throw new Error("request not found");
-      if (fresh.status !== "pending") throw new Error("request is no longer pending (" + fresh.status + ")");
-      if (kind === "approve" && fresh.action !== action) throw new Error("action changed since you opened it; review it again");
-      if (fresh.agent_account_id === session.accountId) throw new Error("approver and agent must be different accounts");
-      var wallet = await connector.wallet();
-      var args = kind === "approve" ? { request_id: id, action: fresh.action } : { request_id: id };
-      var result = await wallet.signAndSendTransaction({
-        receiverId: cfg.contract,
-        actions: [{
-          type: "FunctionCall",
-          params: { methodName: kind, args: args, gas: GAS, deposit: "0" }
-        }]
-      });
-      var hash = txHash(result);
-      setBanner("Signed. Waiting until the change is visible at finality…", "");
-      var updated = null;
-      for (var i = 0; i < 8; i++) {
-        await new Promise(function (r) { setTimeout(r, 2000); });
-        updated = await view("get_request", { request_id: id });
-        if (updated && updated.status !== "pending") break;
-      }
+      var decided = await api.decide(connector, session, kind, id, action, function (message) { setBanner(message, ""); });
+      var hash = decided.hash;
+      var updated = decided.request;
       if (updated && updated.status !== "pending") {
         requests.set(id, updated);
         var done = "Request " + id + " is " + updated.status + ".";
@@ -1239,23 +932,6 @@
     showApprovalPage();
   }
 
-  function mapPool(items, limit, fn) {
-    var out = new Array(items.length);
-    var next = 0;
-    function worker() {
-      if (next >= items.length) return Promise.resolve();
-      var i = next++;
-      return fn(items[i], i).then(function (value) {
-        out[i] = value;
-        return worker();
-      });
-    }
-    var n = Math.min(limit, items.length);
-    var workers = [];
-    for (var w = 0; w < n; w++) workers.push(worker());
-    return Promise.all(workers).then(function () { return out; });
-  }
-
   function refresh() {
     if (inFlight) return inFlight;
     inFlight = doRefresh().finally(function () { inFlight = null; });
@@ -1303,52 +979,10 @@
     }
   }
 
-  function permissionLabel(permission) {
-    if (permission === "FullAccess" || (permission && permission.GasKeyFullAccess)) return "full-access";
-    var fc = permission && (permission.FunctionCall || permission.GasKeyFunctionCall);
-    if (fc) return "function-call key for " + fc.receiver_id + " (" + (fc.method_names || []).join(", ") + ")";
-    return "unrecognized permission";
-  }
-
   async function describeSession(account) {
-    session = {
-      accountId: account.accountId,
-      publicKey: account.publicKey || "",
-      principal: null,
-      permission: null
-    };
-    var lines = ["Connected as " + account.accountId + "."];
-    if (!account.publicKey) {
-      lines.push("The wallet did not report a public key. approve will fail unless the key it signs with is already registered.");
-      return lines;
-    }
-    lines.push("Signing key " + account.publicKey + ".");
-    try {
-      var access = await rpcQuery({
-        request_type: "view_access_key",
-        finality: "final",
-        account_id: account.accountId,
-        public_key: account.publicKey
-      });
-      session.permission = access.permission;
-      lines.push("On the account this key is " + permissionLabel(access.permission) + ".");
-      if (access.permission === "FullAccess") {
-        lines.push("A full-access key can be registered with add-approver.sh --force. It is weaker than a key limited to approve and reject on this contract.");
-      }
-    } catch (err) {
-      lines.push("Could not read that access key (" + errorText(err) + ").");
-    }
-    try {
-      var principal = await view("get_principal", { public_key: account.publicKey });
-      session.principal = principal;
-      if (!principal) lines.push("Not registered on this contract. The owner has to add it before you can sign.");
-      else if (principal.role !== "approver") lines.push("Registered as " + principal.role + ", not approver.");
-      else if (principal.account_id !== account.accountId) lines.push("Registered to " + principal.account_id + ", not this account.");
-      else lines.push("Registered approver, registration " + principal.registration_id + ".");
-    } catch (err) {
-      lines.push("Could not read get_principal (" + errorText(err) + ").");
-    }
-    return lines;
+    var described = await api.describeSession(account);
+    session = described.session;
+    return described.lines;
   }
 
   function renderSession(lines) {
@@ -1391,25 +1025,11 @@
   }
 
   function initConnector() {
-    if (!window.HOTConnect) {
+    connector = K.initConnector(cfg.network, { signIn: onSignedIn, signOut: onSignedOut });
+    if (!connector) {
       $("connect").disabled = true;
       $("wallet-status").textContent = "Wallet connector did not load. You can still read requests.";
-      return;
     }
-    connector = new HOTConnect.NearConnector({
-      network: cfg.network,
-      features: { signInWithoutAddKey: true, signAndSendTransaction: true }
-    });
-    connector.on("wallet:signIn", function (event) {
-      var account = event.accounts && event.accounts[0];
-      if (account) onSignedIn(account);
-    });
-    connector.on("wallet:signOut", onSignedOut);
-    connector.wallet().then(function (wallet) {
-      return wallet.getAccounts();
-    }).then(function (accounts) {
-      if (accounts && accounts.length) onSignedIn(accounts[0]);
-    }).catch(function () { /* no restored session */ });
   }
 
   $("connect").addEventListener("click", connectWallet);

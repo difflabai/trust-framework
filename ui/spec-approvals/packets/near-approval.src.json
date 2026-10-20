@@ -1,0 +1,347 @@
+{
+  "packet": {
+    "id": "near-approval",
+    "version": "2026-10-20",
+    "title": "near-approval spec review",
+    "summary": "What a spec reviewer reads and signs to discharge ASM-SPEC for the NEAR approval contract. The reviewer certifies that the specs say what the contract is meant to do: the property statements and the reference step semantics. The proofs re-run in CI on every change; the reviewer reads statements and skips proof bodies.",
+    "qualifies": "A named human who did not write approval-core. Claude sessions wrote most of the specs and harnesses, so a review by Claude does not count.",
+    "why_a_day": [
+      "The step semantics is written four times (Prolog step/4, TLA+, Lean, the Verus spec machine) and machines check that the copies agree: MC-3 and MC-4 (Prolog graph = TLC graph = Lean graph, 21,670 stores, 41,706 edges); MC-2, RT-TRACE and REF-5 (210 traces, 6,800 steps, identical on the real core, spec.rs, tla.rs and the deployed wasm); Verus (the core refines abs.rs for every public function).",
+      "So the reviewer reads one copy of the step semantics closely (item C) and spot-checks the rest. Property statements are tied together only by shared IDs, C-7 traceability and mutants, so those are what need reading."
+    ],
+    "sources": {
+      "formalver": {
+        "repo": "difflabai/formalver",
+        "commit": "f3c64714853649374342e8833c687444b3a057e4",
+        "root": "projects/near-approval"
+      },
+      "trust-framework": {
+        "repo": "difflabai/trust-framework",
+        "commit": "18f57cb218f391d59d14f9db68dd2dd6951d71fb",
+        "root": ""
+      }
+    }
+  },
+  "items": [
+    {
+      "id": "A",
+      "title": "Contract intent (README)",
+      "minutes": 30,
+      "summary": "The contract README is the statement of intent. Everything in the later items must agree with it.",
+      "read": [
+        {
+          "source": "trust-framework",
+          "path": "contracts/approval/README.md",
+          "label": "Contract README"
+        }
+      ],
+      "check": [
+        "You understand what each of the 16 #[near] methods is for, who may call it, and what it records.",
+        "Nothing in the README is ambiguous enough that two readers would build different contracts."
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Threats and property catalogue",
+      "minutes": 120,
+      "summary": "strategy.md section 3 (threats, trust assumptions) and section 5 (the property catalogue in math). Each property must mean what the README means.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "strategy.md",
+          "label": "Section 3: threats and trust assumptions",
+          "from": "^## 3\\. ",
+          "to": "^## 4\\. "
+        },
+        {
+          "source": "formalver",
+          "path": "strategy.md",
+          "label": "Section 5: property catalogue",
+          "from": "^## 5\\. ",
+          "to": "^## 6\\. "
+        }
+      ],
+      "check": [
+        "Each property in section 5 states what the README means; none over-claims or under-claims.",
+        "Nothing the README promises is missing from section 5.",
+        "Section 3.2 maps every listed threat to at least one property."
+      ],
+      "properties": "*"
+    },
+    {
+      "id": "C",
+      "title": "Reference step semantics (Prolog step/4)",
+      "minutes": 45,
+      "summary": "The requirements-only Prolog machine. The TLC and Lean state graphs are machine-checked equal to it, and its traces are replayed on the real core and the wasm, so this is the one copy of the step semantics to read closely.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "prolog/requirements/approval_req.pl",
+          "label": "step/4 and guard/4"
+        }
+      ],
+      "check": [
+        "The guard order and the error each guard raises match the README for add_agent/add_approver, revoke_key, request_action, approve and reject.",
+        "The effects of each successful step (what is written, what counters move) match the README."
+      ],
+      "properties": {
+        "module": "requirements"
+      }
+    },
+    {
+      "id": "D1",
+      "title": "Verus spec machine and lemma statements",
+      "minutes": 90,
+      "summary": "The strongest evidence: a proof on the real core at every store size. Read abs.rs in full and only the ensures clauses (statements) of the lemma files.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "verus/src/abs.rs",
+          "label": "AbsStore and the spec machine"
+        },
+        {
+          "source": "formalver",
+          "path": "verus/src/props.rs",
+          "label": "Invariant lemmas (statements only)"
+        },
+        {
+          "source": "formalver",
+          "path": "verus/src/hist.rs",
+          "label": "History lemmas (statements only)"
+        },
+        {
+          "source": "formalver",
+          "path": "verus/src/runs.rs",
+          "label": "Run lemmas TR-1/2/3/7 (statements only)"
+        },
+        {
+          "source": "formalver",
+          "path": "verus/src/reads.rs",
+          "label": "Read lemmas (statements only)"
+        }
+      ],
+      "check": [
+        "The spec machine in abs.rs matches step/4 (item C).",
+        "Each lemma statement matches its section 5 row."
+      ],
+      "properties": {
+        "layer": "verus"
+      }
+    },
+    {
+      "id": "D2",
+      "title": "What Verus takes on trust",
+      "minutes": 30,
+      "summary": "Every assume_specification, external type spec and trusted impl the verified twin relies on, and every rewrite of deployed code inside the twin.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "verus/TRUSTED.toml",
+          "label": "Trusted specs, each mapped to an ASM"
+        },
+        {
+          "source": "formalver",
+          "path": "verus/src/trusted.rs",
+          "label": "The trusted specs themselves"
+        },
+        {
+          "source": "formalver",
+          "path": "verus/REWRITES.toml",
+          "label": "Rewrites of deployed code"
+        }
+      ],
+      "check": [
+        "Each trusted std/near-sdk spec holds for the pinned toolchain and near-sdk 5.29.1.",
+        "Each rewrite is behaviour-preserving (each has a Kani equivalence harness)."
+      ],
+      "assumptions": [
+        "ASM-STRLEN",
+        "ASM-DERIVE",
+        "ASM-IDTYPE"
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "TLA+ property statements",
+      "minutes": 30,
+      "summary": "The TLA+ invariants, action properties and liveness formulas.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "tla/ApprovalProps.tla",
+          "label": "Invariants and action properties"
+        },
+        {
+          "source": "formalver",
+          "path": "tla/MC_Liveness.tla",
+          "label": "Liveness"
+        }
+      ],
+      "check": [
+        "INV, HIST and liveness formulas match their section 5 rows."
+      ],
+      "properties": {
+        "layer": "tla"
+      }
+    },
+    {
+      "id": "D4",
+      "title": "Lean property statements and temporal encoding",
+      "minutes": 45,
+      "summary": "Lean proves the TLA+ model's properties at every size. Read the statements and the one-line encodings of the TLA+ temporal operators.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "lean/ApprovalLean/Props.lean",
+          "label": "Property statements"
+        },
+        {
+          "source": "formalver",
+          "path": "lean/ApprovalLean/Liveness.lean",
+          "label": "Temporal encoding (Steps, EvAlways, InfOften, Enabled, WeakFair, StrongFair) and Live1",
+          "from": "^def Steps ",
+          "to": "^theorem "
+        },
+        {
+          "source": "formalver",
+          "path": "lean/ApprovalLean/Ident.lean",
+          "label": "LEAN-COVER statement",
+          "from": "^theorem cover ",
+          "through": ":= by"
+        },
+        {
+          "source": "formalver",
+          "path": "strategy.md",
+          "label": "Section 18.7: liveness at every size",
+          "from": "^### 18\\.7 "
+        }
+      ],
+      "check": [
+        "The Lean statements say what the TLA+ ones say.",
+        "Steps, EvAlways, InfOften, Enabled, WeakFair and StrongFair match TLA+ semantics."
+      ],
+      "properties": {
+        "layer": "lean"
+      }
+    },
+    {
+      "id": "D5",
+      "title": "Kani executable spec (spec.rs)",
+      "minutes": 30,
+      "summary": "Kani checks the deployed code path within bounds, and L2 lifts that to every store size. Mostly redundant with D1; skim it.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "kani/src/spec.rs",
+          "label": "expected: results in guard order",
+          "from": "^pub fn expected\\(",
+          "through": "^}"
+        },
+        {
+          "source": "formalver",
+          "path": "kani/src/spec.rs",
+          "label": "post_ok: post-state and frame",
+          "from": "^pub fn post_ok\\(",
+          "through": "^}"
+        },
+        {
+          "source": "formalver",
+          "path": "kani/src/spec.rs",
+          "label": "inv0 .. inv16",
+          "from": "^pub fn inv0\\(",
+          "to": "^pub fn lem1\\("
+        }
+      ],
+      "check": [
+        "expected agrees with step/4 (spot-check 3 operations)."
+      ],
+      "properties": {
+        "layer": "kani"
+      }
+    },
+    {
+      "id": "E",
+      "title": "Trust assumptions",
+      "minutes": 45,
+      "summary": "Every assumption the verification rests on, against strategy.md section 3.3. ASM-FINAL, ASM-TOOLS, ASM-OWNER and ASM-DISPLAY are trusted permanently by decision.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "status.toml",
+          "label": "[assumptions]",
+          "from": "^\\[assumptions\\.",
+          "to": "^\\[modules\\."
+        },
+        {
+          "source": "formalver",
+          "path": "strategy.md",
+          "label": "Section 3.3: trust assumptions (TCB)",
+          "from": "^### 3\\.3 ",
+          "to": "^## 4\\. "
+        }
+      ],
+      "check": [
+        "Each assumption is acceptable for this deployment.",
+        "The permanently trusted list (ASM-FINAL, ASM-TOOLS, ASM-OWNER, ASM-DISPLAY) is agreed."
+      ],
+      "assumptions": "*"
+    },
+    {
+      "id": "F",
+      "title": "near-sdk macro expansion (SH-9, RD-6)",
+      "minutes": 45,
+      "summary": "The #[near] wrapper is generated code that unit tests cannot see. Run cargo expand on the contract at the pin and read the wrapper.",
+      "read": [
+        {
+          "source": "trust-framework",
+          "path": "contracts/approval/contract/src/lib.rs",
+          "label": "Contract source (run: cargo expand -p approval-contract)"
+        }
+      ],
+      "check": [
+        "#[init] new panics if state already exists, and is #[private].",
+        "Every method fails before init (PanicOnDefault).",
+        "Change methods are non-payable.",
+        "&self view methods never write state.",
+        "Only the 16 #[near] methods are exported."
+      ],
+      "properties": {
+        "ids": [
+          "SH-9",
+          "SH-10",
+          "SH-11",
+          "RD-6"
+        ]
+      },
+      "assumptions": [
+        "ASM-SDK"
+      ]
+    },
+    {
+      "id": "G",
+      "title": "Open findings accepted as documented",
+      "minutes": 20,
+      "summary": "Findings that stay open by design. Each is either defence in depth or covered by a property or deployment rule.",
+      "read": [
+        {
+          "source": "formalver",
+          "path": "strategy.md",
+          "label": "Section 4: open findings",
+          "from": "^### Open",
+          "to": "^---"
+        }
+      ],
+      "check": [
+        "Each finding below is acceptable with the resolution path given."
+      ],
+      "findings": [
+        "F-4",
+        "F-6",
+        "F-7",
+        "F-9",
+        "F-14",
+        "F-16"
+      ]
+    }
+  ]
+}
