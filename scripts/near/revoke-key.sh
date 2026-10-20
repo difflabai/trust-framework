@@ -84,10 +84,40 @@ remove_keyfiles() {
   done <"$NEAR_TMP/keyfiles"
 }
 
+# rotate_hint ACCOUNT ROLE: how to make the replacement key, keeping a
+# narrowed scope (KEY_SCOPE, read before the key was deleted).
+KEY_SCOPE=""
+rotate_hint() {
+  local m=""
+  if [ -n "$KEY_SCOPE" ] && [ "$KEY_SCOPE" != "$(role_methods "$2")" ] && methods_subset "$2" "$KEY_SCOPE"; then
+    m=" --methods $KEY_SCOPE"
+  fi
+  log "    (a new key: scripts/near/new-principal.sh $1 $2$m)"
+}
+# env_hint: warn when ENV_FILE still holds PK as a principal key; the
+# signing scripts fall back to it.
+env_hint() {
+  local r pfx pv kv epk
+  for r in agent approver; do
+    pfx=$(principal_env_prefix "$r")
+    pv=${pfx}_PUBLIC_KEY kv=${pfx}_PRIVATE_KEY
+    epk=${!pv:-}
+    if [ -z "$epk" ]; then
+      { xtrace_off; } 2>/dev/null
+      if [ -n "${!kv:-}" ]; then epk=$(printf '%s' "${!kv}" | nu pubkey 2>/dev/null || true); fi
+      xtrace_on
+    fi
+    if [ "$epk" = "$PK" ]; then
+      warn "$ENV_FILE still holds this key as ${pfx}_*. Remove those lines, or after new-principal.sh run" \
+        "scripts/near/principal-env.sh <account> $r --replace"
+    fi
+  done
+}
 # delete_access_key ACCOUNT: delete PK from ACCOUNT's access keys.
 delete_access_key() {
   local acct=$1 k
   k=$(near_key_permission "$acct" "$PK")
+  if [ "$(jget "$k" permission)" = FunctionCall ]; then KEY_SCOPE=$(key_methods "$k"); fi
   if [ "$(jget "$k" exists)" = true ]; then
     near_require_full_access "$acct"
     near_tx "Delete access key $PK from $acct" "$(near_signer_keyfile "$acct")" \
@@ -113,6 +143,7 @@ if [ "$CUR" = null ]; then
     delete_access_key "$ACCT"
     remove_keyfiles "$ACCT"
   fi
+  env_hint
   printf 'null\n'
   exit 0
 fi
@@ -133,17 +164,19 @@ ok "revoked registration $REG of $ACCT at block $(jget "$REV" block)"
 if [ "$DELETE_KEY" = 1 ]; then
   delete_access_key "$ACCT"
   remove_keyfiles "$ACCT"
+  rotate_hint "$ACCT" "$ROLE"
 else
   F=$(principal_keyfile "$ACCT" "$ROLE")
   if [ -f "$F" ] && [ "$(jget "$(nu keyfile-info "$F")" public_key)" = "$PK" ]; then
     R="${F%.json}.revoked-$REG.json"
     mv "$F" "$R"
     ok "retired the stored key file: $R"
-    log "    (the next 'scripts/near/new-principal.sh $ACCT $ROLE' generates a new key)"
+    log "    (the next 'scripts/near/new-principal.sh $ACCT $ROLE' generates a new key, with the same methods)"
   fi
   if [ "$(jget "$(near_key_permission "$ACCT" "$PK")" exists)" = true ]; then
     log "    The key is still an access key of $ACCT. To delete it too:"
     log "      scripts/near/revoke-key.sh $PK --delete-access-key --account $ACCT"
   fi
 fi
+env_hint
 printf '%s\n' "$REV" | nu json-pretty

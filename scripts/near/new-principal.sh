@@ -14,7 +14,7 @@
 #      approver: approve, reject; or --methods), unlimited gas allowance.
 #      View methods need no key: anyone can read them over RPC.
 #   4. register it with add_agent / add_approver (owner-signed), and note
-#      the contract and registration id in the key file
+#      the contract, methods and registration id in the key file
 # Prints {account_id, role, methods, public_key, key_file, registration_id} on stdout.
 #
 # A stored key that was revoked is not re-registered: revoke-key.sh retires
@@ -132,6 +132,53 @@ else
   log "    $ACCT exists ($(fmt_near "$(jget "$A" amount)"), available $(fmt_near "$(near_available "$A")"))"
   if [ "$(int_calc "$(near_available "$A") < $TX_FEE_MARGIN_YOCTO")" = 1 ]; then
     warn "$ACCT has almost no balance left for its own gas; top it up: scripts/near/transfer.sh $ACCT 0.5 --yes"
+  fi
+fi
+
+# The scope and key a previous setup left behind, when no key file is stored
+# (a fresh checkout with only .env, or a rotation after revoke-key.sh):
+# keep a narrowed scope instead of silently widening it to the role default.
+if [ ! -f "$KEYFILE" ]; then
+  ENV_RC=0
+  ENV_KF=$(principal_env_keyfile "$ACCT" "$ROLE") || ENV_RC=$?
+  [ "$ENV_RC" -le 1 ] || exit 1
+  if [ "$ENV_RC" = 0 ]; then
+    EPK=$(jget "$(nu keyfile-info "$ENV_KF")" public_key)
+    EK=$(near_key_permission "$ACCT" "$EPK")
+    EM=""
+    if [ "$(jget "$EK" permission)" = FunctionCall ] && [ "$(jget "$EK" receiver_id)" = "$APPROVAL_CONTRACT_ID" ]; then
+      EM=$(key_methods "$EK")
+    fi
+    if [ -z "$METHODS_ARG" ] && methods_subset "$ROLE" "$EM"; then
+      METHODS=$EM
+      log "    using the scope of the $ROLE key in $ENV_FILE: [$METHODS]"
+    fi
+    EP=$(near_view get_principal "$(nu json-build public_key="$EPK")") || die "get_principal failed"
+    if [ "$(jget "$EK" exists)" = true ] && [ "$EP" != null ] &&
+      [ "$(jget "$EP" account_id)" = "$ACCT" ] && [ "$(jget "$EP" role)" = "$ROLE" ]; then
+      mkdir -p "$(dirname "$KEYFILE")"
+      chmod 700 "$NEAR_CREDENTIALS_DIR" "$(dirname "$KEYFILE")" 2>/dev/null || true
+      nu convert-keyfile --in "$ENV_KF" --account "$ACCT" --out "$KEYFILE" >/dev/null || die "could not store the key from $ENV_FILE"
+      ok "imported the registered $ROLE key $EPK of $ACCT from $ENV_FILE into $KEYFILE"
+    else
+      warn "$ENV_FILE holds $(principal_env_prefix "$ROLE")_* for $ACCT ($EPK), but it is not a live registered $ROLE key; generating a new one." \
+        "Afterwards update $ENV_FILE: scripts/near/principal-env.sh $NAME $ROLE --replace"
+    fi
+    rm -f "$ENV_KF"
+  fi
+fi
+if [ ! -f "$KEYFILE" ] && [ -z "$METHODS_ARG" ] && [ "$METHODS" = "$(role_methods "$ROLE")" ]; then
+  RF=""
+  for f in "${KEYFILE%.json}".revoked-*.json; do
+    [ -f "$f" ] || continue
+    if [ -z "$RF" ] || [ "$f" -nt "$RF" ]; then RF=$f; fi
+  done
+  if [ -n "$RF" ]; then
+    RM=$(jget "$(nu keyfile-info "$RF")" methods 2>/dev/null || echo null)
+    if [ "$RM" != null ] && methods_subset "$ROLE" "$RM" && [ "$RM" != "$METHODS" ]; then
+      METHODS=$(role_scope "$ROLE" "$RM")
+      log "    using the scope recorded for the previous key ($RF): [$METHODS]; pass --methods to change it"
+    fi
   fi
 fi
 
