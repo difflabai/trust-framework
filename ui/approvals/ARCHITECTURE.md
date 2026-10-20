@@ -36,8 +36,12 @@ The approval log has the same search, plus a filter for whether a key
 behind the proof was later revoked. A filter walks ids, or approval-log
 pages, until the current result page is full. The walk is not repeated on
 the timer: a later refresh re-reads the visible matches and any new ids at
-the tip. The contract has no pending index, so a pending filter cannot
-skip decided history. Show action still loads one id directly.
+the tip. If a visible match no longer qualifies, the scan continues until
+the page is full again or the log is exhausted. New ids are inserted
+newest-first. Filtered approval proofs are re-read, so a later revocation
+leaves the "neither key revoked" filter. The contract has no pending
+index, so a pending filter cannot skip decided history. Show action still
+loads one id directly.
 
 ## Showing an action
 

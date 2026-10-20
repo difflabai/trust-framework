@@ -1039,6 +1039,28 @@
     }
   }
 
+  function dropStaleApprovalMatches(q) {
+    if (!approvalScan) return;
+    var start = approvalPage * PAGE;
+    var end = start + PAGE;
+    approvalScan.matches = approvalScan.matches.filter(function (index, idx) {
+      if (idx < start || idx >= end) return true;
+      var proof = approvals.get(index);
+      return proof && approvalMatches(proof, q);
+    });
+  }
+
+  async function refreshVisibleApprovals(indexes) {
+    if (!indexes.length) return;
+    await mapPool(indexes, 4, function (index) {
+      var cached = approvals.get(index);
+      if (!cached) return Promise.resolve();
+      return view("get_approval", { request_id: cached.request_id }).then(function (proof) {
+        if (proof) approvals.set(proof.approval_index, proof);
+      }).catch(function () {});
+    });
+  }
+
   function dropStaleRequestMatches(q) {
     if (!requestScan) return;
     var start = requestPage * PAGE;
@@ -1083,10 +1105,12 @@
             for (var n = requestCount - 1; n >= requestScan.tip; n--) fresh.push(n);
             await fetchRequests(fresh);
             if (gen !== requestGen) continue;
+            var added = [];
             fresh.forEach(function (id) {
               var req = requests.get(id);
-              if (req && requestMatches(req, q) && requestScan.matches.indexOf(id) === -1) requestScan.matches.unshift(id);
+              if (req && requestMatches(req, q) && requestScan.matches.indexOf(id) === -1) added.push(id);
             });
+            if (added.length) requestScan.matches = added.concat(requestScan.matches);
             requestScan.tip = requestCount;
           }
           await ensureRequestMatches(requestPage, gen, q);
@@ -1095,6 +1119,12 @@
           await fetchRequests(visible);
           if (gen !== requestGen) continue;
           dropStaleRequestMatches(q);
+          await ensureRequestMatches(requestPage, gen, q);
+          if (gen !== requestGen) continue;
+          var filled = requestScan.matches.slice(requestPage * PAGE, (requestPage + 1) * PAGE);
+          var missing = filled.filter(function (id) { return visible.indexOf(id) === -1; });
+          if (missing.length) await fetchRequests(missing);
+          if (gen !== requestGen) continue;
           renderRequests();
         }
         touchChecked();
@@ -1165,14 +1195,26 @@
               proofs = proofs.concat(chunk);
             }
             if (gen !== approvalGen) continue;
+            var added = [];
             for (var i = proofs.length - 1; i >= 0; i--) {
               if (approvalMatches(proofs[i], q) && approvalScan.matches.indexOf(proofs[i].approval_index) === -1) {
-                approvalScan.matches.unshift(proofs[i].approval_index);
+                added.push(proofs[i].approval_index);
               }
             }
+            if (added.length) approvalScan.matches = added.concat(approvalScan.matches);
             approvalScan.tip = approvalCount;
           }
           await ensureApprovalMatches(approvalPage, gen, q);
+          if (gen !== approvalGen) continue;
+          var visible = approvalScan.matches.slice(approvalPage * PAGE, (approvalPage + 1) * PAGE);
+          await refreshVisibleApprovals(visible);
+          if (gen !== approvalGen) continue;
+          dropStaleApprovalMatches(q);
+          await ensureApprovalMatches(approvalPage, gen, q);
+          if (gen !== approvalGen) continue;
+          var filled = approvalScan.matches.slice(approvalPage * PAGE, (approvalPage + 1) * PAGE);
+          var missing = filled.filter(function (index) { return visible.indexOf(index) === -1; });
+          await refreshVisibleApprovals(missing);
           if (gen !== approvalGen) continue;
           renderApprovals();
         }
