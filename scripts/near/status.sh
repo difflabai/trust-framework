@@ -263,6 +263,49 @@ if [ "$DEPLOYED" = 1 ]; then
       out "  $acct ($role) $pk: $reg"
     done
   fi
+
+  # Principals whose keys live in ENV_FILE (principal-env.sh).
+  found=0
+  for role in agent approver; do
+    pfx=$(principal_env_prefix "$role")
+    av=${pfx}_ACCOUNT_ID pv=${pfx}_PUBLIC_KEY kv=${pfx}_PRIVATE_KEY
+    acct=${!av:-}
+    [ -n "$acct" ] || continue
+    if [ "$found" = 0 ]; then
+      out ""
+      out "Principals in $ENV_FILE"
+      found=1
+    fi
+    pk=${!pv:-} dpk="" note=""
+    { xtrace_off; } 2>/dev/null
+    if [ -n "${!kv:-}" ]; then dpk=$(printf '%s' "${!kv}" | nu pubkey 2>/dev/null || true); fi
+    xtrace_on
+    if [ -z "${!kv:-}" ]; then
+      note=" (no $kv: scripts can't sign as it)"
+    elif [ -z "$dpk" ]; then
+      note=" ($kv is not a valid ed25519 secret key)"
+    elif [ -n "$pk" ] && [ "$pk" != "$dpk" ]; then
+      note=" ($pv does not match $kv, whose public key is $dpk)"
+    fi
+    pk=${pk:-$dpk}
+    if [ -z "$pk" ]; then
+      out "  $role $acct: no usable $pv / $kv$note"
+      continue
+    fi
+    k=$(nur access-key "$acct" "$pk" 2>/dev/null || echo '{}')
+    case $(jget "$k" permission) in
+      FunctionCall) scope="function-call key [$(methods_norm "$(printf '%s' "$k" | nu json-get method_names --join ,)")] on $(jget "$k" receiver_id)" ;;
+      FullAccess) scope="FULL-ACCESS key" ;;
+      *) scope="not an access key of $acct" ;;
+    esac
+    p=$(near_view get_principal "$(nu json-build public_key="$pk")" 2>/dev/null || echo error)
+    case $p in
+      null) reg="not registered" ;;
+      error) reg="get_principal failed" ;;
+      *) reg="registered as $(jget "$p" role) of $(jget "$p" account_id) (registration $(jget "$p" registration_id), pending $(jget "$p" pending))" ;;
+    esac
+    out "  $role $acct $pk: $scope; $reg$note"
+  done
 fi
 
 if [ -n "$PROBLEMS" ]; then

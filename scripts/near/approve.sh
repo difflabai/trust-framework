@@ -82,6 +82,7 @@ near_require_contract
 IDARGS=$(nu json-build request_id:="$ID")
 
 if [ "$SKIP" = 0 ]; then
+  require_key_can_call "$ACCT" "$KEYFILE" approve
   REQ=$(near_view get_request "$IDARGS") || die "get_request failed"
   [ "$REQ" != null ] || die "request $ID does not exist (get_request_count is $(near_view get_request_count))"
   STATUS=$(jget "$REQ" status)

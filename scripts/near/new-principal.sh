@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: scripts/near/new-principal.sh <name|account_id> <agent|approver> [--balance NEAR]
+# Usage: scripts/near/new-principal.sh <name|account_id> <agent|approver> [--balance NEAR] [--methods LIST]
 #
 # Set up an agent or approver end to end, idempotently:
 #   1. ensure the account <name>.<NEAR_ACCOUNT_ID> exists (created by
@@ -11,10 +11,11 @@
 #      gitignored), or reuse the key already stored there
 #   3. add it to the account as a function-call access key restricted to
 #      APPROVAL_CONTRACT_ID and the role's methods (agent: request_action;
-#      approver: approve, reject), unlimited gas allowance
+#      approver: approve, reject; or --methods), unlimited gas allowance.
+#      View methods need no key: anyone can read them over RPC.
 #   4. register it with add_agent / add_approver (owner-signed), and note
 #      the contract and registration id in the key file
-# Prints {account_id, role, public_key, key_file, registration_id} on stdout.
+# Prints {account_id, role, methods, public_key, key_file, registration_id} on stdout.
 #
 # A stored key that was revoked is not re-registered: revoke-key.sh retires
 # the key file, and a key file whose recorded registration was revoked is
@@ -27,6 +28,10 @@
 # Options:
 #   --balance NEAR   initial balance if the account must be created (at
 #                    least 0.05 NEAR: a principal pays its own gas)
+#   --methods LIST   comma-separated subset of the role's methods for the
+#                    key, e.g. --methods approve for an approver key that
+#                    cannot reject (default: all of them, or the methods
+#                    recorded in the stored key file)
 #   -h, --help
 set -euo pipefail
 NEAR_SELF=${BASH_SOURCE[0]}
@@ -38,7 +43,7 @@ done
 # shellcheck source=SCRIPTDIR/lib.sh
 . "$(cd "$(dirname "$NEAR_SELF")" && pwd -P)/lib.sh"
 
-NAME="" ROLE="" BALANCE_ARG=""
+NAME="" ROLE="" BALANCE_ARG="" METHODS_ARG=""
 while [ $# -gt 0 ]; do
   case $1 in
     -h | --help)
@@ -48,6 +53,12 @@ while [ $# -gt 0 ]; do
     --balance)
       [ $# -gt 1 ] || usage_error "--balance needs an amount"
       BALANCE_ARG=$2
+      shift
+      ;;
+    --methods)
+      [ $# -gt 1 ] || usage_error "--methods needs a list, e.g. approve"
+      METHODS_ARG=$2
+      [ -n "$METHODS_ARG" ] || usage_error "--methods needs a non-empty list"
       shift
       ;;
     -*) usage_error "unknown option '$1'" ;;
@@ -74,12 +85,18 @@ case $LABEL in
     "For an account you control elsewhere, add a function-call key yourself and run add-$ROLE.sh." ;;
 esac
 [ "$ACCT" != "$APPROVAL_CONTRACT_ID" ] || die "the contract account cannot be a principal"
-METHODS=$(role_methods "$ROLE")
+METHODS=$(role_scope "$ROLE" "$METHODS_ARG")
 BALANCE=$(yocto "${BALANCE_ARG:-${APPROVAL_PRINCIPAL_BALANCE:-0.5}}") || usage_error "bad balance"
 MIN_PRINCIPAL_BALANCE=$(yocto 0.05)
 [ "$(int_calc "$BALANCE >= $MIN_PRINCIPAL_BALANCE")" = 1 ] ||
   usage_error "balance $(fmt_near "$BALANCE") is too small: a principal pays its own gas (minimum 0.05 NEAR)"
 KEYFILE=$(principal_keyfile "$ACCT" "$ROLE")
+if [ -z "$METHODS_ARG" ] && [ -f "$KEYFILE" ]; then
+  KF_METHODS=$(jget "$(nu keyfile-info "$KEYFILE")" methods 2>/dev/null || echo null)
+  if [ -n "$KF_METHODS" ] && [ "$KF_METHODS" != null ]; then
+    METHODS=$(role_scope "$ROLE" "$KF_METHODS")
+  fi
+fi
 # separate_dir_hint RECEIVER: how to run a second contract instance's principals.
 separate_dir_hint() {
   printf '%s\n' "This key belongs to $1. Function-call keys are scoped to one contract, so for another" \
@@ -157,13 +174,19 @@ fi
 
 # 3. the function-call access key
 KRC=0
-check_principal_access_key "$ACCT" "$ROLE" "$PK" || KRC=$?
+check_principal_access_key "$ACCT" "$ROLE" "$PK" "$METHODS" || KRC=$?
 if [ "$KRC" = 0 ]; then
   log "    $PK is already a function-call key of $ACCT for $APPROVAL_CONTRACT_ID [$METHODS]"
 elif [ "$KRC" = 2 ]; then
   RECV=$(jget "$PRINCIPAL_KEY_JSON" receiver_id)
   if [ "$(jget "$PRINCIPAL_KEY_JSON" permission)" = FunctionCall ] && [ "$RECV" != "$APPROVAL_CONTRACT_ID" ]; then
     die "$PK is already on $ACCT as a function-call key for $RECV." "$(separate_dir_hint "$RECV")"
+  fi
+  if [ "$(jget "$PRINCIPAL_KEY_JSON" permission)" = FunctionCall ] && [ -n "$PRINCIPAL_KEY_METHODS" ] &&
+    methods_subset "$ROLE" "$PRINCIPAL_KEY_METHODS"; then
+    die "$PK is already on $ACCT scoped to [$PRINCIPAL_KEY_METHODS], not [$METHODS]." \
+      "Keep it with --methods $PRINCIPAL_KEY_METHODS, or re-scope it: scripts/near/revoke-key.sh $PK --delete-access-key --account $ACCT," \
+      "then re-run with the methods you want (a new key is generated)."
   fi
   die "$PK is already on $ACCT with a different permission (see above)." \
     "Delete it (scripts/near/revoke-key.sh $PK --delete-access-key --account $ACCT) to generate a new key."
@@ -186,8 +209,8 @@ REG=$(jget "$PRINCIPAL_JSON" registration_id)
 require_uint registration_id "$REG"
 # Bookkeeping in the key file (near-cli ignores extra fields): lets a later
 # run notice that this registration was revoked.
-nu keyfile-set "$KEYFILE" contract_id="$APPROVAL_CONTRACT_ID" role="$ROLE" registration_id:="$REG" ||
+nu keyfile-set "$KEYFILE" contract_id="$APPROVAL_CONTRACT_ID" role="$ROLE" methods="$METHODS" registration_id:="$REG" ||
   warn "could not note the registration in $KEYFILE"
 
-nu json-build account_id="$ACCT" role="$ROLE" public_key="$PK" key_file="$KEYFILE" \
+nu json-build account_id="$ACCT" role="$ROLE" methods="$METHODS" public_key="$PK" key_file="$KEYFILE" \
   registration_id:="$(jget "$PRINCIPAL_JSON" registration_id)" | nu json-pretty

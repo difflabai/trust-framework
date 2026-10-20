@@ -784,7 +784,86 @@ def cmd_keyfile_info(a):
         d = json.load(f)
     print_value({"account_id": acct, "public_key": pk, "mode": "%04o" % mode,
                  "contract_id": d.get("contract_id"), "role": d.get("role"),
-                 "registration_id": d.get("registration_id")})
+                 "registration_id": d.get("registration_id"), "methods": d.get("methods")})
+
+
+ENV_PREFIX_RE = re.compile(r"[A-Z][A-Z0-9_]*")
+ENV_SAFE_VALUE_RE = re.compile(r"[A-Za-z0-9:._-]+")
+
+
+def env_line_name(line):
+    """The variable a KEY=VALUE line of an env file sets, or None."""
+    t = line.strip()
+    if t.startswith("export "):
+        t = t[len("export "):].lstrip()
+    if t.startswith("#") or "=" not in t:
+        return None
+    return t.split("=", 1)[0].strip()
+
+
+def cmd_env_append(a):
+    """Append <PREFIX>_ACCOUNT_ID/_PUBLIC_KEY/_PRIVATE_KEY from a key file to an env file.
+
+    The secret goes from the key file straight into the env file, which is
+    rewritten atomically with mode 0600. Identical values already present:
+    no change. Different ones: refused unless --replace, which drops the old
+    lines (and this prefix's header comment) first.
+    """
+    if not ENV_PREFIX_RE.fullmatch(a.prefix):
+        raise Fail("bad prefix %r (A-Z, 0-9 and _ only)" % a.prefix, 2)
+    acct, pk, secret = load_keyfile(a.keyfile)
+    if not acct:
+        raise Fail("key file %s has no account_id" % a.keyfile)
+    values = [(a.prefix + "_ACCOUNT_ID", acct), (a.prefix + "_PUBLIC_KEY", pk),
+              (a.prefix + "_PRIVATE_KEY", secret)]
+    for _, v in values:
+        if not ENV_SAFE_VALUE_RE.fullmatch(v):
+            raise Fail("refusing to write a value with unexpected characters for %s" % a.prefix)
+    header = "# %s: %s" % (a.prefix, " ".join(a.comment.split()))
+    names = dict(values)
+    path = os.path.realpath(a.env_file)
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        mode = os.stat(path).st_mode & 0o777
+    except FileNotFoundError:
+        lines, mode = [], 0o600
+    current = {}
+    for line in lines:
+        n = env_line_name(line)
+        if n in names:
+            current.setdefault(n, line.split("=", 1)[1].strip().strip("\"'"))
+    if current:
+        if len(current) == len(names) and all(current[n] == v for n, v in values):
+            print("unchanged")
+            return
+        if not a.replace:
+            raise Fail("%s already sets %s with other values; pass --replace to overwrite them"
+                       % (path, ", ".join(sorted(current))))
+        lines = [l for l in lines
+                 if env_line_name(l) not in names and not l.startswith("# %s: " % a.prefix)]
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if lines:
+        lines.append("")
+    lines.append(header)
+    lines.extend("%s=%s" % nv for nv in values)
+    tmp = "%s.tmp.%d" % (path, os.getpid())
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    if mode & 0o077:
+        sys.stderr.write("note: %s was mode %04o; it is now 0600\n" % (path, mode))
+    print("replaced" if current else "appended")
 
 
 def cmd_keyfile_set(a):
@@ -1090,6 +1169,14 @@ def main(argv=None):
     s.add_argument("path")
     s.add_argument("pairs", nargs="+")
     s.set_defaults(fn=cmd_keyfile_set)
+
+    s = sub.add_parser("env-append", help="append a key file's account/public/private key to an env file (0600)")
+    s.add_argument("--keyfile", required=True)
+    s.add_argument("--env-file", required=True)
+    s.add_argument("--prefix", required=True)
+    s.add_argument("--comment", required=True)
+    s.add_argument("--replace", action="store_true")
+    s.set_defaults(fn=cmd_env_append)
 
     s = sub.add_parser("file-mode", help="octal permission bits of a file")
     s.add_argument("path")

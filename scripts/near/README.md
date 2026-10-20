@@ -7,7 +7,7 @@ works from any directory, and is safe to re-run: each one checks the chain
 first and only sends what is missing.
 
 ```text
-build-wasm.sh  ->  deploy.sh  ->  new-principal.sh (agent, approver)  ->  request-action.sh / approve.sh / reject.sh
+build-wasm.sh  ->  deploy.sh  ->  new-principal.sh (agent, approver)  [-> principal-env.sh]  ->  request-action.sh / approve.sh / reject.sh
                     status.sh, view.sh, list-requests.sh, smoke-test.sh, transfer.sh, faucet-fund.sh,
                     revoke-key.sh, delete-account.sh, lock-contract.sh
 ```
@@ -70,6 +70,8 @@ different file.
 | `NEAR_DEPLOYMENTS_DIR` | `scripts/near/deployments` | Deployment records, `<dir>/<network>/<contract>.json`. |
 | `NEAR_EXPLORER_TX_URL` | per network | Prefix for printed transaction links (testnet `https://testnet.nearblocks.io/txns/`). |
 | `NEAR_FAUCET_URL` | `https://helper.testnet.near.org/account` | Testnet faucet API used by `faucet-fund.sh` (https only). |
+| `APPROVAL_AGENT_ACCOUNT_ID`, `APPROVAL_AGENT_PUBLIC_KEY`, `APPROVAL_AGENT_PRIVATE_KEY` | unset | An agent's credentials, written by `principal-env.sh`. `request-action.sh <that account>` signs with them when no key file is stored for it. |
+| `APPROVAL_APPROVER_ACCOUNT_ID`, `APPROVAL_APPROVER_PUBLIC_KEY`, `APPROVAL_APPROVER_PRIVATE_KEY` | unset | The same for an approver (`approve.sh`, `reject.sh`). |
 
 Relative paths in `NEAR_CREDENTIALS_DIR`, `NEAR_DEPLOYMENTS_DIR` and
 `APPROVAL_WASM` are relative to the repo root; `~/...` is expanded, `$VARS`
@@ -113,7 +115,8 @@ seconds).
 | `deploy.sh` | Idempotent deploy, see below. `--dry-run` shows the plan, what it costs and the exact near-cli commands, and sends nothing; it also works without `NEAR_PRIVATE_KEY` (key checks skipped). |
 | `view.sh <method> [json-args]` | Any view method, pretty-printed. |
 | `list-requests.sh [--pending] [--from N] [--limit N]` | Requests as one JSON object per line (default: the newest 50), optionally only pending ones. |
-| `new-principal.sh <name> <agent\|approver>` | Creates `<name>.<NEAR_ACCOUNT_ID>` (if needed, `--balance`, default 0.5 NEAR, minimum 0.05), generates a new keypair (or reuses the stored one, unless its registration was revoked), adds it as a function-call key restricted to the contract and the role's methods (agent: `request_action`; approver: `approve`, `reject`; unlimited allowance), registers it and notes the contract and registration id in the key file. |
+| `new-principal.sh <name> <agent\|approver>` | Creates `<name>.<NEAR_ACCOUNT_ID>` (if needed, `--balance`, default 0.5 NEAR, minimum 0.05), generates a new keypair (or reuses the stored one, unless its registration was revoked), adds it as a function-call key restricted to the contract and the role's methods (agent: `request_action`; approver: `approve`, `reject`; unlimited allowance), registers it and notes the contract, methods and registration id in the key file. `--methods` narrows the key to a subset, e.g. `--methods approve` for an approver key that cannot reject; later runs reuse the recorded methods. |
+| `principal-env.sh <name> <agent\|approver> [--replace]` | Appends a principal's stored credentials to `ENV_FILE` as `APPROVAL_AGENT_*` / `APPROVAL_APPROVER_*` (account id, public key, private key), after checking the key is a contract-scoped function-call key registered for that role. Rewrites the file atomically with mode 0600; the secret never passes through argv or stdout. Same key again: no change; a different key for the role needs `--replace`. |
 | `add-agent.sh <account> <public_key>`, `add-approver.sh <account> <public_key>` | Register a key you manage yourself. Refuses a full-access key or one scoped to another receiver or other methods unless `--force`; a key not yet on the account only gets a warning. |
 | `revoke-key.sh <public_key> [--delete-access-key [--account ACCOUNT]]` | `revoke_key`, and retires the stored key file (renamed to `<account>.<role>.revoked-<n>.json`) so the next `new-principal.sh` makes a new key. With `--delete-access-key` it also deletes the key from its account and removes the file; that also works for a key that is no longer registered. |
 | `request-action.sh <agent> <action>` | Signs `request_action` with the agent's stored key (or `--key-file PATH`); prints the request id. `--action-file PATH` (`-` for stdin) reads the action byte for byte; an action starting with `-` goes after `--`. |
@@ -243,6 +246,24 @@ one. `revoke-key.sh` retires the stored file even without
 the revoked key is never re-registered by accident; `new-principal.sh` also
 refuses a stored key whose recorded registration was revoked. Revocation
 voids the old key's pending requests for good.
+
+To keep a principal's credentials in `.env` (e.g. for other tools, or a
+fresh checkout without `.near-credentials/`), export them with
+`principal-env.sh`. The signing scripts fall back to those variables when
+no key file is stored for the account, and `status.sh` lists them:
+
+```bash
+scripts/near/new-principal.sh approver1 approver --methods approve   # may approve, not reject
+scripts/near/principal-env.sh agent1 agent        # APPROVAL_AGENT_ACCOUNT_ID / _PUBLIC_KEY / _PRIVATE_KEY
+scripts/near/principal-env.sh approver1 approver  # APPROVAL_APPROVER_*
+```
+
+A function-call key only limits which **change** methods its holder can
+sign. View methods (`get_request`, `get_approval`, `get_owner`, ...) need
+no key at all: anyone can call them over RPC (`view.sh`). Each principal
+account also carries `NEAR_ACCOUNT_ID`'s full-access key, so the operator
+can top it up, rotate its keys or delete it; the scoped key is the one the
+agent or approver holds.
 
 A real approver should not use a key from this repo's credentials dir:
 generate it elsewhere, register it with `add-approver.sh`, and sign with

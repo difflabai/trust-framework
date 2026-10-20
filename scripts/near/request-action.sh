@@ -71,6 +71,7 @@ else
 fi
 KEYFILE=$(require_principal_keyfile "$ACCT" agent "$KEY_FILE")
 near_require_contract
+require_key_can_call "$ACCT" "$KEYFILE" request_action
 ARGS=$(nu json-build --file action="$AFILE") || die "could not encode the action (it must be valid UTF-8)"
 
 near_call "$ACCT" "$KEYFILE" request_action "$ARGS" "Request action as $ACCT" || die "request_action failed"
