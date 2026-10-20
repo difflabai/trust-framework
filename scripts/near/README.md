@@ -247,6 +247,10 @@ voids the old key's pending requests for good.
 A real approver should not use a key from this repo's credentials dir:
 generate it elsewhere, register it with `add-approver.sh`, and sign with
 `approve.sh <approver> <id> --action-file action.txt --key-file ~/keys/reviewer.json`.
+To sign from a browser wallet instead, open [`ui/approvals/`](../../ui/approvals/README.md)
+and register the wallet's public key with `add-approver.sh … --force`
+(a full-access key; the page cannot select a different key than the one
+the wallet connects with).
 
 ### Smoke test
 

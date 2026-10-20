@@ -35,6 +35,8 @@ sarajevo/
 │       ├── core/                 # approval-core: state machine (no near-sdk)
 │       ├── contract/             # approval-contract: near-sdk shell, events, views
 │       └── sandbox/              # near-workspaces tests against the built wasm
+├── ui/
+│   └── approvals/                # Approver UI: one HTML file, wallet-signed approve/reject
 └── Architecture.md               # This file
 ```
 
@@ -234,3 +236,12 @@ key may hold at most 16 pending requests. Builds are reproducible from a
 pinned cargo-near image. See
 `contracts/approval/README.md` for the API, event schema, and the checks an
 off-chain verifier must make.
+
+## Approver UI (`ui/approvals`)
+
+A single HTML file an approver opens locally. It polls `get_request_count`
+and `get_request`, shows a request's action on its own, and the approver's
+wallet signs `approve` or `reject` directly to the contract. No backend, no
+relayer, and no function-call key added on connect. Signing stays disabled
+unless the contract's `code_hash` matches the expected hash. See
+`ui/approvals/ARCHITECTURE.md`.
