@@ -1,0 +1,21 @@
+{
+  "contract_id": "approvals.difflabai.testnet",
+  "network": "testnet",
+  "owner_id": "difflabai.testnet",
+  "code_hash": "5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv",
+  "wasm_sha256": "3f48c2f2b121d359507ebc696c8a402e2ae7cba1c57552a5e18c49a65761bde9",
+  "wasm_size": 167622,
+  "source_commit": "081a3a645801f2a68f2c5d3d9b707dfbc8a2993c",
+  "source_repo": "https://github.com/difflabai/trust-framework.git",
+  "build_mode": "ci",
+  "ci_run_id": 39073377037,
+  "ci_run_url": "https://github.com/difflabai/trust-framework/actions/runs/39073377037",
+  "action": "create",
+  "tx_hash": "658LMxuvnPe6vrGuZjXnUN811yi3P8v1Ayhyzpv1DECG",
+  "create_tx_hash": "37mrGTRMPSZc4Gwtw8z5b1ya7gnY1RL6B44eVEtzXpQ1",
+  "explorer_url": "https://testnet.nearblocks.io/txns/658LMxuvnPe6vrGuZjXnUN811yi3P8v1Ayhyzpv1DECG",
+  "deployed_at": "2026-10-19T20:01:46Z",
+  "deployer_account": "difflabai.testnet",
+  "near_cli_version": "0.15.1",
+  "history": []
+}

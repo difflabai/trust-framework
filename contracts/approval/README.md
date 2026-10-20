@@ -212,6 +212,19 @@ A proof is only as good as the contract that produced it. A verifier should:
   reasons. An agent whose `request_action` result was lost recovers its
   `request_id` from the transaction outcome (`tx` RPC) instead of retrying.
 
+## Deploying
+
+[`scripts/near/`](../../scripts/near/README.md) deploys and operates this
+contract: `build-wasm.sh` fetches CI's reproducible wasm (or rebuilds it
+locally), `deploy.sh` creates the contract account, deploys and calls `new`
+in one transaction signed by the contract account, and records the
+deployment, `new-principal.sh` sets up agents and approvers with
+function-call keys scoped to this contract, and `smoke-test.sh` checks a
+deployment end to end. The default target is `approvals.difflabai.testnet`
+(deployed on testnet from `081a3a6`; see
+[`scripts/near/README.md`](../../scripts/near/README.md#current-deployment));
+`scripts/near/sandbox.sh` runs the same flow against a local sandbox.
+
 ## Build and test
 
 ```bash
