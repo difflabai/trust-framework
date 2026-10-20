@@ -287,7 +287,14 @@ if [ "$DEPLOYED" = 1 ]; then
     fi
     xtrace_on
     if [ "$have_kv" = 0 ]; then
-      note=" (no $kv: scripts can't sign as it)"
+      # Fine while a stored key file signs for this principal; otherwise
+      # the scripts can't act as it.
+      if [ -f "$(principal_keyfile "$acct" "$role")" ]; then
+        note=" (no $kv; the stored key file signs)"
+      else
+        note=" (no $kv and no stored key file: scripts can't sign as it)"
+        problem "$kv is missing for the $role principal $acct in $ENV_FILE (and no key file is stored)"
+      fi
     elif [ -z "$dpk" ]; then
       note=" ($kv is not a valid ed25519 secret key)"
       problem "$kv in $ENV_FILE is not a valid ed25519 secret key"

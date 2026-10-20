@@ -906,15 +906,17 @@ require_key_can_call() {
   pk=$(jget "$info" public_key)
   k=$(near_key_permission "$acct" "$pk")
   [ "$(jget "$k" exists)" = true ] || die "$pk (from $2) is not an access key of $acct."
-  [ "$(jget "$k" permission)" != FullAccess ] || return 0
-  [ "$(jget "$k" receiver_id)" = "$APPROVAL_CONTRACT_ID" ] ||
-    die "$pk of $acct is a function-call key for $(jget "$k" receiver_id), not $APPROVAL_CONTRACT_ID."
-  methods=$(key_methods "$k")
-  case ",$methods," in
-    ,\*, | *",$3,"*) ;;
-    *) die "$pk of $acct may not call $3: it is scoped to [$(methods_label "$methods")] on $APPROVAL_CONTRACT_ID." \
-      "Use a key whose scope includes $3." ;;
-  esac
+  # A full-access key may call anything; only its registration matters.
+  if [ "$(jget "$k" permission)" != FullAccess ]; then
+    [ "$(jget "$k" receiver_id)" = "$APPROVAL_CONTRACT_ID" ] ||
+      die "$pk of $acct is a function-call key for $(jget "$k" receiver_id), not $APPROVAL_CONTRACT_ID."
+    methods=$(key_methods "$k")
+    case ",$methods," in
+      ,\*, | *",$3,"*) ;;
+      *) die "$pk of $acct may not call $3: it is scoped to [$(methods_label "$methods")] on $APPROVAL_CONTRACT_ID." \
+        "Use a key whose scope includes $3." ;;
+    esac
+  fi
   # The contract also requires the key to be registered for the method's
   # role; a revoked key (e.g. still in .env) would only fail on chain.
   local role=approver p
