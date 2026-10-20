@@ -212,6 +212,15 @@ A proof is only as good as the contract that produced it. A verifier should:
   reasons. An agent whose `request_action` result was lost recovers its
   `request_id` from the transaction outcome (`tx` RPC) instead of retrying.
 
+## Approver UI
+
+[`ui/approvals/`](../../ui/approvals/README.md) is a single HTML file an
+approver opens over localhost. It lists pending requests from
+`get_request_count` / `get_request` and has the approver's wallet sign
+`approve` or `reject` directly. It does not relay, and it does not add a
+key on connect. Register the wallet's signing key with `add-approver.sh`
+(`--force` for a full-access key) before it can succeed.
+
 ## Deploying
 
 [`scripts/near/`](../../scripts/near/README.md) deploys and operates this

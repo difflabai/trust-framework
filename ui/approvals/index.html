@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Review pending requests and sign approve or reject on the NEAR approval contract.">
+  <title>Approvals</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --text: CanvasText;
+      --bg: Canvas;
+      --muted: GrayText;
+      --line: color-mix(in srgb, CanvasText 22%, Canvas);
+      --soft: color-mix(in srgb, CanvasText 6%, Canvas);
+      --warn: color-mix(in srgb, #b45309 82%, CanvasText);
+      --bad: color-mix(in srgb, #b91c1c 78%, CanvasText);
+      --ok: color-mix(in srgb, #15803d 72%, CanvasText);
+    }
+    * { box-sizing: border-box; }
+    body {
+      max-width: 42rem;
+      margin: 2rem auto 4rem;
+      padding: 0 1.25rem;
+      background: var(--bg);
+      color: var(--text);
+      font: 1.05rem/1.5 system-ui, sans-serif;
+    }
+    h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 0.25rem; }
+    h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
+    p, dl, ul { margin: 0.75rem 0; }
+    a { color: LinkText; }
+    a:focus-visible, button:focus-visible, summary:focus-visible {
+      outline: 2px solid LinkText;
+      outline-offset: 2px;
+    }
+    header { margin-bottom: 1.75rem; }
+    .lede { color: var(--muted); margin-top: 0; }
+    .meta {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 0.2rem 0.75rem;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+    .meta dt { color: var(--muted); }
+    .meta dd { margin: 0; overflow-wrap: anywhere; }
+    .mono, pre, code, .key {
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.86rem;
+    }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    button, .settings button, select, input {
+      font: inherit;
+      color: ButtonText;
+      background: ButtonFace;
+      border: 1px solid var(--line);
+      border-radius: 0.3rem;
+      padding: 0.4rem 0.75rem;
+      min-height: 2.5rem;
+    }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: 0.55; }
+    button.primary { font-weight: 650; }
+    button.danger { color: var(--bad); }
+    .status {
+      padding: 0.6rem 0.75rem;
+      background: var(--soft);
+      border-left: 3px solid var(--line);
+    }
+    .status.warn { border-left-color: var(--warn); }
+    .status.bad { border-left-color: var(--bad); }
+    article {
+      border: 1px solid var(--line);
+      border-radius: 0.4rem;
+      padding: 0.9rem 1rem 1rem;
+      margin: 0 0 0.85rem;
+    }
+    article header { margin: 0 0 0.4rem; }
+    article h3 { font-size: 1rem; margin: 0; }
+    .when, .agent { color: var(--muted); font-size: 0.95rem; }
+    pre.action {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      unicode-bidi: isolate;
+      direction: ltr;
+      margin: 0.75rem 0;
+      padding: 0.75rem;
+      background: var(--soft);
+      border: 1px solid var(--line);
+    }
+    pre.hex {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      max-height: 12rem;
+      overflow: auto;
+      margin: 0.4rem 0 0;
+    }
+    details { margin: 0.6rem 0; }
+    summary { cursor: pointer; }
+    .empty { color: var(--muted); }
+    dialog {
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      max-width: 36rem;
+      width: calc(100% - 2rem);
+      padding: 1.1rem 1.2rem 1.2rem;
+    }
+    dialog::backdrop { background: color-mix(in srgb, CanvasText 35%, transparent); }
+    dialog h2 { margin-top: 0; }
+    dialog h3 { font-size: 1rem; margin: 0.9rem 0 0.25rem; }
+    label { display: block; margin: 0.7rem 0 0.2rem; }
+    input, select { width: 100%; }
+    #show-form { margin: 0 0 1rem; }
+    #show-form label { display: inline; margin: 0; }
+    #show-id { width: 8rem; }
+    .filters { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin: 0 0 0.75rem; }
+    .filters label { display: inline; margin: 0; }
+    .filters select, .filters input { width: auto; }
+    #search { flex: 1 1 12rem; min-width: 12rem; }
+    .pager { margin: 0.25rem 0 1.5rem; }
+    footer { margin-top: 2.5rem; color: var(--muted); font-size: 0.95rem; }
+    footer .settings { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Approvals</h1>
+    <p class="lede">Review a request, then sign <code>approve</code> or <code>reject</code> with your own key. This page does not hold keys and does not submit anything for you.</p>
+    <dl class="meta">
+      <dt>Contract</dt><dd id="meta-contract"></dd>
+      <dt>Network</dt><dd id="meta-network"></dd>
+      <dt>Code</dt><dd id="meta-code">Checking…</dd>
+      <dt>Owner</dt><dd id="meta-owner">Checking…</dd>
+      <dt>Account keys</dt><dd id="meta-keys">Checking…</dd>
+    </dl>
+    <div class="row">
+      <button type="button" id="connect" class="primary">Connect wallet</button>
+      <button type="button" id="refresh">Refresh</button>
+    </div>
+    <p id="wallet-status" class="when">Not connected. You can read requests without a wallet.</p>
+    <p id="checked" class="when"></p>
+  </header>
+
+  <main>
+    <p id="banner" class="status" hidden></p>
+    <form id="show-form" class="row">
+      <label for="show-id">Request</label>
+      <input id="show-id" name="request_id" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="id">
+      <button type="submit">Show action</button>
+    </form>
+    <div class="filters">
+      <label for="status-filter">Status</label>
+      <select id="status-filter">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="void">Void</option>
+      </select>
+      <label for="search">Search</label>
+      <input id="search" type="search" placeholder="agent, action, key, or id" autocomplete="off" spellcheck="false">
+    </div>
+    <section aria-labelledby="requests-heading">
+      <h2 id="requests-heading">Requests <span id="requests-count"></span></h2>
+      <p id="requests-note" class="when"></p>
+      <div id="request-list"><p class="empty">Reading the contract…</p></div>
+      <p class="row pager">
+        <button type="button" id="requests-newest">Newest</button>
+        <button type="button" id="requests-newer">Newer</button>
+        <button type="button" id="requests-older">Older</button>
+        <button type="button" id="requests-oldest">Oldest</button>
+        <span id="requests-page" class="when"></span>
+      </p>
+    </section>
+    <section aria-labelledby="approvals-heading">
+      <h2 id="approvals-heading">Approval log <span id="approvals-count"></span></h2>
+      <div class="filters">
+        <label for="revoked-filter">Keys</label>
+        <select id="revoked-filter">
+          <option value="all">All</option>
+          <option value="live">Neither key revoked</option>
+          <option value="revoked">A key was revoked</option>
+        </select>
+      </div>
+      <p id="approvals-note" class="when"></p>
+      <div id="approval-list"><p class="empty">Reading the approval log…</p></div>
+      <p class="row pager">
+        <button type="button" id="approvals-newest">Newest</button>
+        <button type="button" id="approvals-newer">Newer</button>
+        <button type="button" id="approvals-older">Older</button>
+        <button type="button" id="approvals-oldest">Oldest</button>
+        <span id="approvals-page" class="when"></span>
+      </p>
+    </section>
+  </main>
+
+  <dialog id="show" aria-labelledby="show-title">
+    <h2 id="show-title"></h2>
+    <p class="when" id="show-meta"></p>
+    <p id="show-agent"></p>
+    <h3>Action</h3>
+    <pre class="action" id="show-action"></pre>
+    <p id="show-flags" class="warn" hidden></p>
+    <p id="show-block" class="warn" hidden></p>
+    <details>
+      <summary>UTF-8 bytes</summary>
+      <pre class="hex mono" id="show-hex"></pre>
+    </details>
+    <div class="row">
+      <button type="button" id="show-copy">Copy action</button>
+      <button type="button" id="show-approve" class="primary" hidden>Approve</button>
+      <button type="button" id="show-reject" class="danger" hidden>Reject</button>
+      <button type="button" id="show-close">Close</button>
+    </div>
+  </dialog>
+
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-lead"></p>
+    <p class="when" id="confirm-agent"></p>
+    <pre class="action" id="confirm-action"></pre>
+    <p id="confirm-flags" class="warn" hidden></p>
+    <div class="row">
+      <button type="button" id="confirm-go" class="primary">Sign</button>
+      <button type="button" id="confirm-cancel">Cancel</button>
+    </div>
+  </dialog>
+
+  <footer>
+    <details class="settings">
+      <summary>Contract and network</summary>
+      <form id="settings">
+        <label for="set-contract">Contract account</label>
+        <input id="set-contract" name="contract" autocomplete="off" spellcheck="false" required>
+        <label for="set-network">Network</label>
+        <select id="set-network" name="network">
+          <option value="testnet">testnet</option>
+          <option value="mainnet">mainnet</option>
+        </select>
+        <label for="set-rpc">RPC URL</label>
+        <input id="set-rpc" name="rpc" type="url" autocomplete="off" spellcheck="false" required>
+        <label for="set-hash">Expected code hash</label>
+        <input id="set-hash" name="code_hash" autocomplete="off" spellcheck="false">
+        <p class="row"><button type="submit">Use these</button></p>
+      </form>
+    </details>
+    <p>The owner registers your wallet's public key with <code>scripts/near/add-approver.sh</code>. A full-access key needs <code>--force</code>. See <a href="README.md">README.md</a> and <a href="ARCHITECTURE.md">ARCHITECTURE.md</a>.</p>
+  </footer>
+
+  <!-- NEAR Connect 0.11.4, commit de0f08af1e07c19fe5f80070383231d16ef924f6. SRI pins the bytes. -->
+  <script
+    src="https://cdn.jsdelivr.net/gh/azbang/near-connect@de0f08af1e07c19fe5f80070383231d16ef924f6/cdn/hot-connect.iife.js"
+    integrity="sha384-6eNPlV+Bf92wTtH7ZfZE8sZPdohJ84VDXuVVegFjBvJsGWE6BXTT1he2jKjalJ9L"
+    crossorigin="anonymous"></script>
+  <script>
+(function () {
+  "use strict";
+
+  var DEFAULT_CONTRACT = "approvals.difflabai.testnet";
+  var DEFAULT_HASH = "5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv";
+  var DEFAULT_OWNER = "difflabai.testnet";
+  var PAGE = 50;
+  var GAS = "30000000000000";
+  var ACCOUNT_RE = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
+
+  var params = new URLSearchParams(location.search);
+  var cfg = readConfig(params);
+  var requests = new Map();
+  var approvals = new Map();
+  var requestCount = null;
+  var approvalCount = null;
+  var requestPage = 0;
+  var requestScan = null;
+  var requestSeek = null;
+  var requestRescan = false;
+  var requestGen = 0;
+  var requestLoading = false;
+  var requestAgain = false;
+  var approvalPage = 0;
+  var approvalScan = null;
+  var approvalSeek = null;
+  var approvalRescan = false;
+  var approvalGen = 0;
+  var approvalLoading = false;
+  var approvalAgain = false;
+  var searchTimer = null;
+  var connector = null;
+  var session = null;
+  var signing = false;
+  var inFlight = null;
+  var confirmRequest = null;
+  var showRequest = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function readConfig(q) {
+    var network = q.get("network") || "testnet";
+    if (network !== "testnet" && network !== "mainnet") network = "testnet";
+    var contract = (q.get("contract") || DEFAULT_CONTRACT).trim().toLowerCase();
+    var rpc = (q.get("rpc") || defaultRpc(network)).trim();
+    var codeHash = q.has("code_hash") ? q.get("code_hash").trim() : (contract === DEFAULT_CONTRACT ? DEFAULT_HASH : "");
+    return { network: network, contract: contract, rpc: rpc, codeHash: codeHash };
+  }
+
+  function defaultRpc(network) {
+    return network === "mainnet" ? "https://rpc.mainnet.near.org" : "https://test.rpc.fastnear.com";
+  }
+
+  function rpcAllowed(url) {
+    try {
+      var u = new URL(url);
+      if (u.protocol === "https:") return true;
+      return u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function accountOk(id) {
+    return id.length >= 2 && id.length <= 64 && ACCOUNT_RE.test(id);
+  }
+
+  function explorerAccount(id) {
+    var host = cfg.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
+    return host + "/address/" + encodeURIComponent(id);
+  }
+
+  function explorerTx(hash) {
+    var host = cfg.network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
+    return host + "/txns/" + encodeURIComponent(hash);
+  }
+
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        var v = attrs[k];
+        if (v == null || v === false) return;
+        if (k === "class") node.className = v;
+        else if (k.slice(0, 2) === "on" && typeof v === "function") node.addEventListener(k.slice(2), v);
+        else if (v === true) node.setAttribute(k, "");
+        else node.setAttribute(k, String(v));
+      });
+    }
+    (children || []).forEach(function (child) {
+      node.append(child instanceof Node ? child : document.createTextNode(child == null ? "" : String(child)));
+    });
+    return node;
+  }
+
+  function text(s) { return document.createTextNode(s == null ? "" : String(s)); }
+
+  function setBanner(message, kind) {
+    var banner = $("banner");
+    banner.hidden = !message;
+    banner.textContent = message || "";
+    banner.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function rpcError(err) {
+    if (err == null) return "RPC error";
+    if (typeof err === "string") return err;
+    var data = err.data;
+    if (typeof data === "string" && data) return data;
+    if (err.cause && err.cause.name) return err.cause.name + (err.message ? ": " + err.message : "");
+    return err.message || "RPC error";
+  }
+
+  function errorText(err) {
+    if (err == null) return "Unknown error";
+    if (typeof err === "string") return err;
+    var raw = err instanceof Error ? err.message : "";
+    var seen = new Set();
+    var texts = [];
+    function walk(v, depth) {
+      if (v == null || depth > 6) return;
+      if (typeof v === "string") {
+        if (v && texts.indexOf(v) === -1) texts.push(v);
+        return;
+      }
+      if (typeof v !== "object" || seen.has(v)) return;
+      seen.add(v);
+      ["message", "ExecutionError", "kind", "error", "panic_msg"].forEach(function (k) {
+        if (v[k] != null) walk(v[k], depth + 1);
+      });
+      Object.keys(v).forEach(function (k) { walk(v[k], depth + 1); });
+    }
+    walk(err, 0);
+    var panic = texts.filter(function (t) { return t.indexOf("Smart contract panicked") !== -1; })[0];
+    if (panic) {
+      var m = panic.match(/Smart contract panicked: ([^"]+)/);
+      return m ? m[1] : panic;
+    }
+    return raw || texts[0] || "The wallet did not complete the transaction.";
+  }
+
+  function isCancel(err) {
+    var raw = err instanceof Error ? err.message : (typeof err === "string" ? err : "");
+    var t = raw.toLowerCase();
+    return t === "user rejected" || t.indexOf("wallet closed") !== -1 || t.indexOf("user cancelled") !== -1 || t.indexOf("user canceled") !== -1 || t.indexOf("rejected by user") !== -1;
+  }
+
+  async function rpcQuery(params) {
+    var res = await fetch(cfg.rpc, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: "approvals-ui", method: "query", params: params }),
+      signal: AbortSignal.timeout(20000)
+    });
+    if (!res.ok) throw new Error("RPC HTTP " + res.status);
+    var json = await res.json();
+    if (json.error) throw new Error(rpcError(json.error));
+    return json.result;
+  }
+
+  async function view(method, args) {
+    var result = await rpcQuery({
+      request_type: "call_function",
+      finality: "final",
+      account_id: cfg.contract,
+      method_name: method,
+      args_base64: btoa(JSON.stringify(args))
+    });
+    var bytes = new Uint8Array(result.result || []);
+    var decoded = new TextDecoder().decode(bytes);
+    if (!decoded) return null;
+    return JSON.parse(decoded);
+  }
+
+  function formatNs(ns) {
+    var s = String(ns == null ? "" : ns);
+    if (!/^\d+$/.test(s)) return s || "unknown time";
+    var ms = s.length > 6 ? Number(s.slice(0, -6)) : 0;
+    var date = new Date(ms);
+    if (Number.isNaN(date.getTime())) return s;
+    return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function suspiciousCodePoints(action) {
+    var found = [];
+    for (var ch of action) {
+      var cp = ch.codePointAt(0);
+      var bad = (cp < 0x20 && cp !== 0x09 && cp !== 0x0a && cp !== 0x0d) || cp === 0x7f || (cp >= 0x80 && cp <= 0x9f) || (cp >= 0x200b && cp <= 0x200f) || (cp >= 0x202a && cp <= 0x202e) || (cp >= 0x2066 && cp <= 0x2069) || cp === 0xfeff || cp === 0x00ad || cp === 0x2028 || cp === 0x2029;
+      if (bad && found.indexOf(cp) === -1) found.push(cp);
+    }
+    return found;
+  }
+
+  function hexDump(action) {
+    var bytes = new TextEncoder().encode(action);
+    var lines = [];
+    for (var i = 0; i < bytes.length; i += 16) {
+      var slice = bytes.slice(i, i + 16);
+      var hex = Array.from(slice).map(function (b) { return b.toString(16).padStart(2, "0"); }).join(" ");
+      lines.push(i.toString(16).padStart(4, "0") + "  " + hex);
+    }
+    return lines.join("\n");
+  }
+
+  function byteLength(action) {
+    return new TextEncoder().encode(action).length;
+  }
+
+  function txHash(result) {
+    if (!result) return null;
+    if (typeof result === "string") return result;
+    return (result.transaction && result.transaction.hash) || result.transactionHash || (result.transaction_outcome && result.transaction_outcome.id) || null;
+  }
+
+  function shortKey(key) {
+    if (!key) return "";
+    if (key.length <= 22) return key;
+    return key.slice(0, 14) + "…" + key.slice(-6);
+  }
+
+  function signingAllowed() {
+    if (!cfg.codeOk) return "Signing is disabled until the contract code hash matches the expected hash.";
+    if (!session) return "Connect the wallet that holds your approver key.";
+    if (!session.principal || session.principal.role !== "approver") return "This key is not a registered approver key.";
+    if (session.principal.account_id !== session.accountId) return "The registered key is bound to a different account.";
+    return "";
+  }
+
+  function renderMeta() {
+    document.title = "Approvals · " + cfg.contract;
+    var contract = $("meta-contract");
+    contract.replaceChildren(
+      el("a", { href: explorerAccount(cfg.contract) }, [cfg.contract]),
+      text(" "),
+      el("span", { class: "when" }, ["(explorer)"])
+    );
+    $("meta-network").textContent = cfg.network + (cfg.network === "mainnet" ? " — mainnet" : "");
+    $("set-contract").value = cfg.contract;
+    $("set-network").value = cfg.network;
+    $("set-rpc").value = cfg.rpc;
+    $("set-hash").value = cfg.codeHash;
+  }
+
+  function renderCode(account) {
+    var live = account && account.code_hash;
+    var node = $("meta-code");
+    node.replaceChildren();
+    if (!live || live === "11111111111111111111111111111111") {
+      cfg.codeOk = false;
+      node.append(el("span", { class: "bad" }, ["No contract code on this account."]));
+      return;
+    }
+    var match = cfg.codeHash && live === cfg.codeHash;
+    cfg.codeOk = match;
+    node.append(el("code", { class: "mono", title: live }, [shortKey(live) === live ? live : live.slice(0, 8) + "…" + live.slice(-6)]));
+    node.append(text(" "));
+    if (!cfg.codeHash) {
+      node.append(el("span", { class: "bad" }, ["No expected hash set. Signing disabled."]));
+    } else if (match) {
+      node.append(el("span", { class: "ok" }, ["matches"]));
+    } else {
+      node.append(el("span", { class: "bad" }, ["does not match " + cfg.codeHash + ". Signing disabled."]));
+    }
+  }
+
+  function renderKeys(keys) {
+    var full = (keys || []).filter(function (k) { return k.access_key && k.access_key.permission === "FullAccess"; }).length;
+    var node = $("meta-keys");
+    node.replaceChildren();
+    node.append(text(full + " full-access"));
+    if (full > 0) {
+      node.append(el("span", { class: "warn" }, [" — this deployment can still be redeployed. The code hash above is re-checked on each refresh."]));
+    } else {
+      node.append(el("span", { class: "ok" }, [" — no full-access key on the contract account."]));
+    }
+  }
+
+  function actionBlock(action) {
+    var flags = suspiciousCodePoints(action);
+    var wrap = el("div");
+    wrap.append(el("pre", { class: "action" }, [action]));
+    var note = byteLength(action) + " bytes";
+    if (flags.length) {
+      note += ". Hidden or bidi characters: " + flags.map(function (cp) {
+        return "U+" + cp.toString(16).toUpperCase().padStart(4, "0");
+      }).join(", ") + ". The text above may not look like the bytes you would be signing.";
+      wrap.append(el("p", { class: "warn" }, [note]));
+      wrap.append(el("details", {}, [
+        el("summary", {}, ["UTF-8 bytes"]),
+        el("pre", { class: "hex mono" }, [hexDump(action)])
+      ]));
+    } else {
+      wrap.append(el("p", { class: "when" }, [note]));
+    }
+    return wrap;
+  }
+
+  function requestArticle(req, decidable) {
+    var id = req.request_id;
+    var article = el("article", { id: "request-" + id });
+    var heading = el("h3", {}, ["Request " + id]);
+    var status = el("span", { class: req.status === "pending" ? "warn" : "when" }, [" · " + req.status]);
+    heading.append(status);
+    article.append(el("header", {}, [heading, el("p", { class: "when" }, [formatNs(req.requested_at_ns) + " · block " + req.requested_at_block])]));
+    article.append(el("p", { class: "agent" }, ["Agent ", el("code", {}, [req.agent_account_id])]));
+    article.append(actionBlock(req.action));
+    article.append(el("details", {}, [
+      el("summary", {}, ["Key"]),
+      el("p", { class: "key" }, [req.agent_public_key]),
+      el("p", { class: "when" }, ["Agent registration " + req.agent_registration_id])
+    ]));
+    var actions = el("div", { class: "row" });
+    actions.append(el("button", { type: "button", onclick: function () { openShow(req); } }, ["Show action"]));
+    actions.append(el("button", { type: "button", onclick: function () { copyAction(req.action, this); } }, ["Copy action"]));
+    if (decidable && req.status === "pending") {
+      var block = signingAllowed();
+      var self = session && session.accountId === req.agent_account_id;
+      if (self) {
+        actions.append(el("span", { class: "warn" }, ["Your account filed this request. The contract will not let you decide it."]));
+      } else {
+        actions.append(el("button", {
+          type: "button",
+          class: "primary",
+          disabled: !!block || signing,
+          title: block,
+          onclick: function () { openConfirm(req, "approve"); }
+        }, ["Approve"]));
+        actions.append(el("button", {
+          type: "button",
+          class: "danger",
+          disabled: !!block || signing,
+          title: block,
+          onclick: function () { openConfirm(req, "reject"); }
+        }, ["Reject"]));
+      }
+    }
+    article.append(actions);
+    return article;
+  }
+
+  function listQuery() {
+    return {
+      status: $("status-filter").value,
+      q: $("search").value.trim().toLowerCase(),
+      keys: $("revoked-filter").value
+    };
+  }
+
+  function requestsNeedScan(q) {
+    return q.status !== "all" || q.q !== "";
+  }
+
+  function approvalsNeedScan(q) {
+    return q.keys !== "all" || q.q !== "";
+  }
+
+  function scanKey(q) {
+    return q.status + "\n" + q.q + "\n" + q.keys;
+  }
+
+  function requestMatches(req, q) {
+    if (q.status !== "all" && req.status !== q.status) return false;
+    if (!q.q) return true;
+    return [req.request_id, req.agent_account_id, req.action, req.agent_public_key].join("\n").toLowerCase().indexOf(q.q) !== -1;
+  }
+
+  function approvalMatches(proof, q) {
+    var revoked = proof.agent_key_revoked_at || proof.approver_key_revoked_at;
+    if (q.keys === "live" && revoked) return false;
+    if (q.keys === "revoked" && !revoked) return false;
+    if (!q.q) return true;
+    return [proof.approval_index, proof.request_id, proof.action, proof.agent_account_id, proof.approver_account_id, proof.agent_public_key, proof.approver_public_key].join("\n").toLowerCase().indexOf(q.q) !== -1;
+  }
+
+  function pageBounds(count, page) {
+    var pages = Math.max(1, Math.ceil((count || 0) / PAGE));
+    var current = Math.min(Math.max(0, page), pages - 1);
+    var to = Math.max(0, (count || 0) - current * PAGE);
+    var from = Math.max(0, to - PAGE);
+    return { from: from, to: to, page: current, pages: count ? pages : 1 };
+  }
+
+  function requestBounds() {
+    return pageBounds(requestCount, requestPage);
+  }
+
+  function approvalBounds() {
+    return pageBounds(approvalCount, approvalPage);
+  }
+
+  function writeListParams() {
+    var q = new URLSearchParams(location.search);
+    var query = listQuery();
+    if (query.status === "all") q.delete("status"); else q.set("status", query.status);
+    if (!query.q) q.delete("q"); else q.set("q", $("search").value.trim());
+    if (query.keys === "all") q.delete("keys"); else q.set("keys", query.keys);
+    var next = q.toString();
+    history.replaceState(null, "", next ? "?" + next : location.pathname);
+  }
+
+  function renderLists() {
+    renderRequests();
+    renderApprovals();
+  }
+
+  function renderRequests(failed) {
+    var q = listQuery();
+    var scanning = requestsNeedScan(q);
+    var count = requestCount;
+    $("requests-count").textContent = count == null ? "" : "(" + count + ")";
+    var list = $("request-list");
+    list.replaceChildren();
+    var note = "";
+    var pageLabel = "";
+    var newest = true;
+    var older = false;
+    var newer = false;
+    if (count == null) {
+      list.append(el("p", { class: "empty" }, ["Reading the contract…"]));
+    } else if (!scanning) {
+      var bounds = requestBounds();
+      var ids = [];
+      for (var i = bounds.to - 1; i >= bounds.from; i--) ids.push(i);
+      if (!ids.length) list.append(el("p", { class: "empty" }, ["No requests on this contract."]));
+      ids.forEach(function (id) {
+        var req = requests.get(id);
+        if (req) list.append(requestArticle(req, true));
+      });
+      if (ids.length) pageLabel = "Ids " + bounds.from + "–" + (bounds.to - 1) + " of " + count + " · page " + (bounds.page + 1) + " of " + bounds.pages;
+      requestPage = bounds.page;
+      newest = bounds.page === 0;
+      newer = bounds.page > 0;
+      older = bounds.from > 0;
+    } else {
+      var matches = requestScan ? requestScan.matches : [];
+      var start = requestPage * PAGE;
+      var visible = matches.slice(start, start + PAGE);
+      if (!visible.length) {
+        list.append(el("p", { class: "empty" }, [requestScan && requestScan.done ? "No requests match." : "Searching request ids…"]));
+      }
+      visible.forEach(function (id) {
+        var req = requests.get(id);
+        if (req) list.append(requestArticle(req, true));
+      });
+      var scanned = requestScan ? count - requestScan.cursor : 0;
+      note = "Filtered by reading request ids. The contract has no pending index.";
+      if (requestScan && !requestScan.done) note += " Scanned " + scanned + " of " + count + ".";
+      else if (requestScan) note += " " + matches.length + " match" + (matches.length === 1 ? "" : "es") + ".";
+      if (visible.length) pageLabel = "Matches " + (start + 1) + "–" + (start + visible.length);
+      newest = requestPage === 0;
+      newer = requestPage > 0;
+      older = !!(requestScan && (matches.length > start + PAGE || !requestScan.done));
+    }
+    $("requests-note").textContent = note;
+    $("requests-page").textContent = pageLabel;
+    $("requests-newest").disabled = newest;
+    $("requests-newer").disabled = !newer;
+    $("requests-older").disabled = !older;
+    $("requests-oldest").disabled = scanning ? !(requestScan && !requestScan.done) : !older;
+    if (failed) $("requests-note").textContent = (note ? note + " " : "") + failed + " request" + (failed === 1 ? "" : "s") + " could not be read.";
+  }
+
+  function approvalArticle(proof) {
+    var article = el("article");
+    var heading = el("h3", {}, ["Approval " + proof.approval_index]);
+    heading.append(el("span", { class: "when" }, [" · request " + proof.request_id]));
+    article.append(el("header", {}, [
+      heading,
+      el("p", { class: "when" }, ["Approved " + formatNs(proof.approved_at_ns) + " · block " + proof.approved_at_block])
+    ]));
+    article.append(el("p", { class: "agent" }, [
+      "Agent ", el("code", {}, [proof.agent_account_id]),
+      text(" · approver "), el("code", {}, [proof.approver_account_id])
+    ]));
+    if (proof.agent_key_revoked_at || proof.approver_key_revoked_at) {
+      var who = [];
+      if (proof.agent_key_revoked_at) who.push("agent key revoked at block " + proof.agent_key_revoked_at.block);
+      if (proof.approver_key_revoked_at) who.push("approver key revoked at block " + proof.approver_key_revoked_at.block);
+      article.append(el("p", { class: "warn" }, [who.join("; ") + "."]));
+    }
+    article.append(el("details", {}, [
+      el("summary", {}, ["Action"]),
+      actionBlock(proof.action)
+    ]));
+    article.append(el("div", { class: "row" }, [
+      el("button", { type: "button", onclick: function () { openShow(requestFromProof(proof)); } }, ["Show action"])
+    ]));
+    return article;
+  }
+
+  function requestFromProof(proof) {
+    return {
+      request_id: proof.request_id,
+      status: "approved",
+      action: proof.action,
+      agent_account_id: proof.agent_account_id,
+      agent_public_key: proof.agent_public_key,
+      agent_registration_id: proof.agent_registration_id,
+      requested_at_ns: proof.requested_at_ns,
+      requested_at_block: proof.requested_at_block
+    };
+  }
+
+  function renderApprovals() {
+    var q = listQuery();
+    var scanning = approvalsNeedScan(q);
+    var count = approvalCount;
+    $("approvals-count").textContent = count == null ? "" : "(" + count + ")";
+    var list = $("approval-list");
+    list.replaceChildren();
+    var note = "";
+    var pageLabel = "";
+    var newest = true;
+    var older = false;
+    var newer = false;
+    if (count == null) {
+      list.append(el("p", { class: "empty" }, ["Reading the approval log…"]));
+    } else if (!scanning) {
+      var bounds = approvalBounds();
+      var indexes = [];
+      for (var i = bounds.to - 1; i >= bounds.from; i--) indexes.push(i);
+      if (!indexes.length) list.append(el("p", { class: "empty" }, ["No approvals on this contract."]));
+      indexes.forEach(function (index) {
+        var proof = approvals.get(index);
+        if (proof) list.append(approvalArticle(proof));
+      });
+      if (indexes.length) pageLabel = "Approvals " + bounds.from + "–" + (bounds.to - 1) + " of " + count + " · page " + (bounds.page + 1) + " of " + bounds.pages;
+      approvalPage = bounds.page;
+      newest = bounds.page === 0;
+      newer = bounds.page > 0;
+      older = bounds.from > 0;
+    } else {
+      var matches = approvalScan ? approvalScan.matches : [];
+      var start = approvalPage * PAGE;
+      var visible = matches.slice(start, start + PAGE);
+      if (!visible.length) {
+        list.append(el("p", { class: "empty" }, [approvalScan && approvalScan.done ? "No approvals match." : "Searching the approval log…"]));
+      }
+      visible.forEach(function (index) {
+        var proof = approvals.get(index);
+        if (proof) list.append(approvalArticle(proof));
+      });
+      var scanned = approvalScan ? count - approvalScan.cursor : 0;
+      note = "Filtered by reading the approval log.";
+      if (approvalScan && !approvalScan.done) note += " Scanned " + scanned + " of " + count + ".";
+      else if (approvalScan) note += " " + matches.length + " match" + (matches.length === 1 ? "" : "es") + ".";
+      if (visible.length) pageLabel = "Matches " + (start + 1) + "–" + (start + visible.length);
+      newest = approvalPage === 0;
+      newer = approvalPage > 0;
+      older = !!(approvalScan && (matches.length > start + PAGE || !approvalScan.done));
+    }
+    $("approvals-note").textContent = note;
+    $("approvals-page").textContent = pageLabel;
+    $("approvals-newest").disabled = newest;
+    $("approvals-newer").disabled = !newer;
+    $("approvals-older").disabled = !older;
+    $("approvals-oldest").disabled = scanning ? !(approvalScan && !approvalScan.done) : !older;
+  }
+
+  async function copyAction(action, button) {
+    var original = button.textContent;
+    try {
+      await navigator.clipboard.writeText(action);
+      button.textContent = "Copied";
+    } catch (e) {
+      button.textContent = "Copy failed";
+    }
+    setTimeout(function () { button.textContent = original; }, 1500);
+  }
+
+  function openShow(req) {
+    showRequest = req;
+    $("show-title").textContent = "Request " + req.request_id;
+    $("show-meta").textContent = req.status + " · " + formatNs(req.requested_at_ns) + " · block " + req.requested_at_block;
+    $("show-agent").replaceChildren(text("Agent "), el("code", {}, [req.agent_account_id]));
+    $("show-action").textContent = req.action;
+    var flags = suspiciousCodePoints(req.action);
+    var flagNode = $("show-flags");
+    flagNode.hidden = flags.length === 0;
+    flagNode.textContent = flags.length
+      ? byteLength(req.action) + " bytes. Hidden or bidi characters: " + flags.map(function (cp) {
+        return "U+" + cp.toString(16).toUpperCase().padStart(4, "0");
+      }).join(", ") + ". The text above may not look like the bytes you would be signing."
+      : "";
+    if (!flags.length) $("show-meta").textContent += " · " + byteLength(req.action) + " bytes";
+    $("show-hex").textContent = hexDump(req.action);
+    var pending = req.status === "pending";
+    var self = session && session.accountId === req.agent_account_id;
+    var block = signingAllowed();
+    $("show-approve").hidden = !pending || self;
+    $("show-reject").hidden = !pending || self;
+    $("show-approve").disabled = !!block || signing;
+    $("show-reject").disabled = !!block || signing;
+    $("show-approve").title = block;
+    $("show-reject").title = block;
+    var blockNote = $("show-block");
+    if (self) {
+      blockNote.hidden = false;
+      blockNote.textContent = "Your account filed this request. The contract will not let you decide it.";
+    } else if (pending && block) {
+      blockNote.hidden = false;
+      blockNote.textContent = block;
+    } else {
+      blockNote.hidden = true;
+      blockNote.textContent = "";
+    }
+    if ($("confirm").open) $("confirm").close();
+    if (!$("show").open) $("show").showModal();
+  }
+
+  async function showById(raw) {
+    var id = String(raw == null ? "" : raw).trim();
+    if (!/^\d+$/.test(id)) {
+      setBanner("Request id must be a number.", "bad");
+      return;
+    }
+    var n = Number(id);
+    var req = requests.get(n) || null;
+    if (!req) {
+      try {
+        req = await view("get_request", { request_id: n });
+      } catch (err) {
+        setBanner(errorText(err), "bad");
+        return;
+      }
+    }
+    if (!req) {
+      setBanner("Request " + id + " was not found.", "warn");
+      return;
+    }
+    openShow(req);
+  }
+
+  function openConfirm(req, kind) {
+    confirmRequest = { id: req.request_id, action: req.action, kind: kind, status: req.status };
+    $("confirm-title").textContent = (kind === "approve" ? "Approve" : "Reject") + " request " + req.request_id + "?";
+    $("confirm-lead").textContent = kind === "approve"
+      ? "You will sign approve with this exact action. The wallet must show the same text. If it does not, reject the prompt."
+      : "Reject does not include the action in the signed transaction. You are rejecting this request id. Confirm it is the one you just read.";
+    $("confirm-agent").textContent = "Agent " + req.agent_account_id;
+    $("confirm-action").textContent = req.action;
+    var flags = suspiciousCodePoints(req.action);
+    var flagNode = $("confirm-flags");
+    flagNode.hidden = flags.length === 0;
+    flagNode.textContent = flags.length
+      ? "This action contains hidden or bidi characters (" + flags.map(function (cp) { return "U+" + cp.toString(16).toUpperCase().padStart(4, "0"); }).join(", ") + ")."
+      : "";
+    $("confirm-go").textContent = kind === "approve" ? "Sign approve" : "Sign reject";
+    $("confirm-go").className = kind === "approve" ? "primary" : "danger";
+    $("confirm").showModal();
+  }
+
+  async function sign(kind, id, action) {
+    if (signing) return;
+    var block = signingAllowed();
+    if (block) {
+      setBanner(block, "bad");
+      return;
+    }
+    signing = true;
+    renderLists();
+    setBanner(kind === "approve" ? "Checking the request, then asking the wallet to sign approve…" : "Checking the request, then asking the wallet to sign reject…", "");
+    try {
+      var fresh = await view("get_request", { request_id: id });
+      if (!fresh) throw new Error("request not found");
+      if (fresh.status !== "pending") throw new Error("request is no longer pending (" + fresh.status + ")");
+      if (kind === "approve" && fresh.action !== action) throw new Error("action changed since you opened it; review it again");
+      if (fresh.agent_account_id === session.accountId) throw new Error("approver and agent must be different accounts");
+      var wallet = await connector.wallet();
+      var args = kind === "approve" ? { request_id: id, action: fresh.action } : { request_id: id };
+      var result = await wallet.signAndSendTransaction({
+        receiverId: cfg.contract,
+        actions: [{
+          type: "FunctionCall",
+          params: { methodName: kind, args: args, gas: GAS, deposit: "0" }
+        }]
+      });
+      var hash = txHash(result);
+      setBanner("Signed. Waiting until the change is visible at finality…", "");
+      var updated = null;
+      for (var i = 0; i < 8; i++) {
+        await new Promise(function (r) { setTimeout(r, 2000); });
+        updated = await view("get_request", { request_id: id });
+        if (updated && updated.status !== "pending") break;
+      }
+      if (updated && updated.status !== "pending") {
+        requests.set(id, updated);
+        var done = "Request " + id + " is " + updated.status + ".";
+        if (hash) {
+          setBanner("", "");
+          var banner = $("banner");
+          banner.hidden = false;
+          banner.className = "status";
+          banner.replaceChildren(text(done + " "), el("a", { href: explorerTx(hash) }, ["Transaction"]));
+        } else {
+          setBanner(done, "");
+        }
+      } else {
+        var waiting = "The transaction was sent, but request " + id + " is still pending at finality. Refresh in a moment.";
+        if (hash) {
+          var node = $("banner");
+          node.hidden = false;
+          node.className = "status warn";
+          node.replaceChildren(text(waiting + " "), el("a", { href: explorerTx(hash) }, ["Transaction"]));
+        } else {
+          setBanner(waiting, "warn");
+        }
+      }
+    } catch (err) {
+      if (isCancel(err)) setBanner("Wallet closed. Nothing was signed.", "");
+      else setBanner(errorText(err), "bad");
+    } finally {
+      signing = false;
+      renderLists();
+    }
+  }
+
+  async function fetchRequests(ids) {
+    var failed = 0;
+    if (!ids.length) return 0;
+    var fetched = await mapPool(ids, 4, function (id) {
+      return view("get_request", { request_id: id }).then(function (req) {
+        return { id: id, req: req };
+      }).catch(function () {
+        return { id: id, req: null };
+      });
+    });
+    fetched.forEach(function (item) {
+      if (item.req) requests.set(item.id, item.req);
+      else failed += 1;
+    });
+    return failed;
+  }
+
+  async function fetchApprovalRange(from, limit) {
+    if (limit <= 0) return [];
+    var proofs = await view("get_approvals", { from_index: from, limit: limit });
+    (proofs || []).forEach(function (proof) { approvals.set(proof.approval_index, proof); });
+    return proofs || [];
+  }
+
+  function touchChecked() {
+    var req = requestCount == null ? "…" : String(requestCount);
+    var ap = approvalCount == null ? "…" : String(approvalCount);
+    $("checked").textContent = "Checked " + new Date().toLocaleTimeString() + " · " + req + " requests · " + ap + " approvals.";
+  }
+
+  async function ensureRequestMatches(pageIndex, gen, q) {
+    var need = requestSeek === "end" ? Infinity : (pageIndex + 1) * PAGE;
+    while (requestScan && requestScan.matches.length < need && !requestScan.done) {
+      if (gen !== requestGen) return;
+      var end = requestScan.cursor;
+      var start = Math.max(0, end - PAGE);
+      if (start === end) {
+        requestScan.done = true;
+        break;
+      }
+      var ids = [];
+      for (var i = end - 1; i >= start; i--) ids.push(i);
+      var toFetch = ids.filter(function (id) {
+        var cached = requests.get(id);
+        return !cached || cached.status === "pending";
+      });
+      await fetchRequests(toFetch);
+      if (gen !== requestGen) return;
+      ids.forEach(function (id) {
+        var req = requests.get(id);
+        if (req && requestMatches(req, q) && requestScan.matches.indexOf(id) === -1) requestScan.matches.push(id);
+      });
+      requestScan.cursor = start;
+      if (start === 0) requestScan.done = true;
+      renderRequests();
+    }
+    if (requestSeek === "end" && requestScan.done) {
+      requestPage = Math.max(0, Math.ceil(requestScan.matches.length / PAGE) - 1);
+      requestSeek = null;
+    }
+  }
+
+  function dropStaleApprovalMatches(q) {
+    if (!approvalScan) return;
+    var start = approvalPage * PAGE;
+    var end = start + PAGE;
+    approvalScan.matches = approvalScan.matches.filter(function (index, idx) {
+      if (idx < start || idx >= end) return true;
+      var proof = approvals.get(index);
+      return proof && approvalMatches(proof, q);
+    });
+  }
+
+  async function refreshVisibleApprovals(indexes) {
+    if (!indexes.length) return;
+    await mapPool(indexes, 4, function (index) {
+      var cached = approvals.get(index);
+      if (!cached) return Promise.resolve();
+      return view("get_approval", { request_id: cached.request_id }).then(function (proof) {
+        if (proof) approvals.set(proof.approval_index, proof);
+      }).catch(function () {});
+    });
+  }
+
+  function dropStaleRequestMatches(q) {
+    if (!requestScan) return;
+    var start = requestPage * PAGE;
+    var end = start + PAGE;
+    requestScan.matches = requestScan.matches.filter(function (id, idx) {
+      if (idx < start || idx >= end) return true;
+      var req = requests.get(id);
+      return req && requestMatches(req, q);
+    });
+  }
+
+  async function showRequestPage() {
+    if (requestLoading) {
+      requestAgain = true;
+      return;
+    }
+    requestLoading = true;
+    try {
+      do {
+        requestAgain = false;
+        var gen = ++requestGen;
+        var q = listQuery();
+        requestCount = await view("get_request_count", {});
+        if (typeof requestCount !== "number") throw new Error("get_request_count did not return a number");
+        if (gen !== requestGen) continue;
+        if (!requestsNeedScan(q)) {
+          requestScan = null;
+          requestSeek = null;
+          var bounds = requestBounds();
+          var ids = [];
+          for (var i = bounds.to - 1; i >= bounds.from; i--) ids.push(i);
+          var failed = await fetchRequests(ids);
+          if (gen !== requestGen) continue;
+          renderRequests(failed);
+        } else {
+          if (requestRescan || !requestScan || requestScan.key !== scanKey(q)) {
+            requestRescan = false;
+            requestScan = { cursor: requestCount, tip: requestCount, matches: [], done: requestCount === 0, key: scanKey(q) };
+            if (requestSeek !== "end") requestPage = 0;
+          } else if (requestCount > requestScan.tip) {
+            var fresh = [];
+            for (var n = requestCount - 1; n >= requestScan.tip; n--) fresh.push(n);
+            await fetchRequests(fresh);
+            if (gen !== requestGen) continue;
+            var added = [];
+            fresh.forEach(function (id) {
+              var req = requests.get(id);
+              if (req && requestMatches(req, q) && requestScan.matches.indexOf(id) === -1) added.push(id);
+            });
+            if (added.length) requestScan.matches = added.concat(requestScan.matches);
+            requestScan.tip = requestCount;
+          }
+          await ensureRequestMatches(requestPage, gen, q);
+          if (gen !== requestGen) continue;
+          var visible = requestScan.matches.slice(requestPage * PAGE, (requestPage + 1) * PAGE);
+          await fetchRequests(visible);
+          if (gen !== requestGen) continue;
+          dropStaleRequestMatches(q);
+          await ensureRequestMatches(requestPage, gen, q);
+          if (gen !== requestGen) continue;
+          var filled = requestScan.matches.slice(requestPage * PAGE, (requestPage + 1) * PAGE);
+          var missing = filled.filter(function (id) { return visible.indexOf(id) === -1; });
+          if (missing.length) await fetchRequests(missing);
+          if (gen !== requestGen) continue;
+          renderRequests();
+        }
+        touchChecked();
+      } while (requestAgain);
+    } finally {
+      requestLoading = false;
+    }
+  }
+
+  async function ensureApprovalMatches(pageIndex, gen, q) {
+    var need = approvalSeek === "end" ? Infinity : (pageIndex + 1) * PAGE;
+    while (approvalScan && approvalScan.matches.length < need && !approvalScan.done) {
+      if (gen !== approvalGen) return;
+      var end = approvalScan.cursor;
+      var start = Math.max(0, end - PAGE);
+      if (start === end) {
+        approvalScan.done = true;
+        break;
+      }
+      var proofs = await fetchApprovalRange(start, end - start);
+      if (gen !== approvalGen) return;
+      for (var i = proofs.length - 1; i >= 0; i--) {
+        if (approvalMatches(proofs[i], q) && approvalScan.matches.indexOf(proofs[i].approval_index) === -1) {
+          approvalScan.matches.push(proofs[i].approval_index);
+        }
+      }
+      approvalScan.cursor = start;
+      if (start === 0) approvalScan.done = true;
+      renderApprovals();
+    }
+    if (approvalSeek === "end" && approvalScan.done) {
+      approvalPage = Math.max(0, Math.ceil(approvalScan.matches.length / PAGE) - 1);
+      approvalSeek = null;
+    }
+  }
+
+  async function showApprovalPage() {
+    if (approvalLoading) {
+      approvalAgain = true;
+      return;
+    }
+    approvalLoading = true;
+    try {
+      do {
+        approvalAgain = false;
+        var gen = ++approvalGen;
+        var q = listQuery();
+        approvalCount = await view("get_approval_count", {});
+        if (typeof approvalCount !== "number") throw new Error("get_approval_count did not return a number");
+        if (gen !== approvalGen) continue;
+        if (!approvalsNeedScan(q)) {
+          approvalScan = null;
+          approvalSeek = null;
+          var bounds = approvalBounds();
+          await fetchApprovalRange(bounds.from, bounds.to - bounds.from);
+          if (gen !== approvalGen) continue;
+          renderApprovals();
+        } else {
+          if (approvalRescan || !approvalScan || approvalScan.key !== scanKey(q)) {
+            approvalRescan = false;
+            approvalScan = { cursor: approvalCount, tip: approvalCount, matches: [], done: approvalCount === 0, key: scanKey(q) };
+            if (approvalSeek !== "end") approvalPage = 0;
+          } else if (approvalCount > approvalScan.tip) {
+            var proofs = [];
+            for (var cursor = approvalScan.tip; cursor < approvalCount; cursor += PAGE) {
+              var chunk = await fetchApprovalRange(cursor, Math.min(PAGE, approvalCount - cursor));
+              if (gen !== approvalGen) break;
+              proofs = proofs.concat(chunk);
+            }
+            if (gen !== approvalGen) continue;
+            var added = [];
+            for (var i = proofs.length - 1; i >= 0; i--) {
+              if (approvalMatches(proofs[i], q) && approvalScan.matches.indexOf(proofs[i].approval_index) === -1) {
+                added.push(proofs[i].approval_index);
+              }
+            }
+            if (added.length) approvalScan.matches = added.concat(approvalScan.matches);
+            approvalScan.tip = approvalCount;
+          }
+          await ensureApprovalMatches(approvalPage, gen, q);
+          if (gen !== approvalGen) continue;
+          var visible = approvalScan.matches.slice(approvalPage * PAGE, (approvalPage + 1) * PAGE);
+          await refreshVisibleApprovals(visible);
+          if (gen !== approvalGen) continue;
+          dropStaleApprovalMatches(q);
+          await ensureApprovalMatches(approvalPage, gen, q);
+          if (gen !== approvalGen) continue;
+          var filled = approvalScan.matches.slice(approvalPage * PAGE, (approvalPage + 1) * PAGE);
+          var missing = filled.filter(function (index) { return visible.indexOf(index) === -1; });
+          await refreshVisibleApprovals(missing);
+          if (gen !== approvalGen) continue;
+          renderApprovals();
+        }
+        touchChecked();
+      } while (approvalAgain);
+    } finally {
+      approvalLoading = false;
+    }
+  }
+
+  function resetLists() {
+    requestGen++;
+    approvalGen++;
+    requestPage = 0;
+    requestSeek = null;
+    requestRescan = true;
+    approvalPage = 0;
+    approvalSeek = null;
+    approvalRescan = true;
+    writeListParams();
+    showRequestPage();
+    showApprovalPage();
+  }
+
+  function mapPool(items, limit, fn) {
+    var out = new Array(items.length);
+    var next = 0;
+    function worker() {
+      if (next >= items.length) return Promise.resolve();
+      var i = next++;
+      return fn(items[i], i).then(function (value) {
+        out[i] = value;
+        return worker();
+      });
+    }
+    var n = Math.min(limit, items.length);
+    var workers = [];
+    for (var w = 0; w < n; w++) workers.push(worker());
+    return Promise.all(workers).then(function () { return out; });
+  }
+
+  function refresh() {
+    if (inFlight) return inFlight;
+    inFlight = doRefresh().finally(function () { inFlight = null; });
+    return inFlight;
+  }
+
+  async function doRefresh() {
+    if (!accountOk(cfg.contract)) {
+      setBanner("Contract account id is not valid.", "bad");
+      return;
+    }
+    if (!rpcAllowed(cfg.rpc)) {
+      setBanner("RPC must be HTTPS, or HTTP to localhost.", "bad");
+      return;
+    }
+    try {
+      var account = await rpcQuery({ request_type: "view_account", finality: "final", account_id: cfg.contract });
+      renderCode(account);
+      var owner = await view("get_owner", {});
+      var ownerNode = $("meta-owner");
+      ownerNode.replaceChildren(el("code", {}, [owner || ""]));
+      if (cfg.contract === DEFAULT_CONTRACT && owner && owner !== DEFAULT_OWNER) {
+        ownerNode.append(el("span", { class: "warn" }, [" — expected " + DEFAULT_OWNER]));
+      }
+      var keyList = await rpcQuery({ request_type: "view_access_key_list", finality: "final", account_id: cfg.contract });
+      renderKeys(keyList.keys || []);
+      if (!cfg.codeOk) {
+        setBanner(cfg.codeHash
+          ? "Live code hash does not match the expected hash. Signing is disabled."
+          : "Set the expected code hash (status.sh prints it) before signing.", "bad");
+      } else if ($("banner").classList.contains("bad") && $("banner").textContent.indexOf("code hash") !== -1) {
+        setBanner("", "");
+      }
+      await Promise.all([showRequestPage(), showApprovalPage()]);
+      var jump = params.get("request");
+      if (jump && /^\d+$/.test(jump)) {
+        params.delete("request");
+        var shown = requests.get(Number(jump));
+        if (shown) openShow(shown);
+        else showById(jump);
+      }
+    } catch (err) {
+      setBanner(errorText(err), "bad");
+      if (!requests.size) $("request-list").replaceChildren(el("p", { class: "empty" }, ["Could not read the contract."]));
+    }
+  }
+
+  function permissionLabel(permission) {
+    if (permission === "FullAccess" || (permission && permission.GasKeyFullAccess)) return "full-access";
+    var fc = permission && (permission.FunctionCall || permission.GasKeyFunctionCall);
+    if (fc) return "function-call key for " + fc.receiver_id + " (" + (fc.method_names || []).join(", ") + ")";
+    return "unrecognized permission";
+  }
+
+  async function describeSession(account) {
+    session = {
+      accountId: account.accountId,
+      publicKey: account.publicKey || "",
+      principal: null,
+      permission: null
+    };
+    var lines = ["Connected as " + account.accountId + "."];
+    if (!account.publicKey) {
+      lines.push("The wallet did not report a public key. approve will fail unless the key it signs with is already registered.");
+      return lines;
+    }
+    lines.push("Signing key " + account.publicKey + ".");
+    try {
+      var access = await rpcQuery({
+        request_type: "view_access_key",
+        finality: "final",
+        account_id: account.accountId,
+        public_key: account.publicKey
+      });
+      session.permission = access.permission;
+      lines.push("On the account this key is " + permissionLabel(access.permission) + ".");
+      if (access.permission === "FullAccess") {
+        lines.push("A full-access key can be registered with add-approver.sh --force. It is weaker than a key limited to approve and reject on this contract.");
+      }
+    } catch (err) {
+      lines.push("Could not read that access key (" + errorText(err) + ").");
+    }
+    try {
+      var principal = await view("get_principal", { public_key: account.publicKey });
+      session.principal = principal;
+      if (!principal) lines.push("Not registered on this contract. The owner has to add it before you can sign.");
+      else if (principal.role !== "approver") lines.push("Registered as " + principal.role + ", not approver.");
+      else if (principal.account_id !== account.accountId) lines.push("Registered to " + principal.account_id + ", not this account.");
+      else lines.push("Registered approver, registration " + principal.registration_id + ".");
+    } catch (err) {
+      lines.push("Could not read get_principal (" + errorText(err) + ").");
+    }
+    return lines;
+  }
+
+  function renderSession(lines) {
+    var node = $("wallet-status");
+    node.replaceChildren();
+    lines.forEach(function (line, i) {
+      if (i) node.append(el("br"));
+      node.append(text(line));
+    });
+    $("connect").textContent = session ? "Disconnect" : "Connect wallet";
+    renderLists();
+  }
+
+  async function onSignedIn(account) {
+    if (!account || !account.accountId) return;
+    var lines = await describeSession(account);
+    renderSession(lines);
+  }
+
+  function onSignedOut() {
+    session = null;
+    renderSession(["Not connected. You can read requests without a wallet."]);
+  }
+
+  async function connectWallet() {
+    if (!window.HOTConnect) {
+      setBanner("Wallet connector failed to load. Reads still work. Check the pinned script.", "bad");
+      return;
+    }
+    if (session) {
+      try { await connector.disconnect(); } catch (e) { /* already signed out */ }
+      onSignedOut();
+      return;
+    }
+    try {
+      await connector.connect();
+    } catch (err) {
+      if (!isCancel(err)) setBanner(errorText(err), "bad");
+    }
+  }
+
+  function initConnector() {
+    if (!window.HOTConnect) {
+      $("connect").disabled = true;
+      $("wallet-status").textContent = "Wallet connector did not load. You can still read requests.";
+      return;
+    }
+    connector = new HOTConnect.NearConnector({
+      network: cfg.network,
+      features: { signInWithoutAddKey: true, signAndSendTransaction: true }
+    });
+    connector.on("wallet:signIn", function (event) {
+      var account = event.accounts && event.accounts[0];
+      if (account) onSignedIn(account);
+    });
+    connector.on("wallet:signOut", onSignedOut);
+    connector.wallet().then(function (wallet) {
+      return wallet.getAccounts();
+    }).then(function (accounts) {
+      if (accounts && accounts.length) onSignedIn(accounts[0]);
+    }).catch(function () { /* no restored session */ });
+  }
+
+  $("connect").addEventListener("click", connectWallet);
+  $("refresh").addEventListener("click", function () {
+    requestRescan = true;
+    approvalRescan = true;
+    requestSeek = null;
+    approvalSeek = null;
+    requestPage = 0;
+    approvalPage = 0;
+    requestGen++;
+    approvalGen++;
+    refresh();
+  });
+  $("requests-newest").addEventListener("click", function () {
+    requestPage = 0;
+    requestSeek = null;
+    showRequestPage();
+  });
+  $("requests-newer").addEventListener("click", function () {
+    requestPage = Math.max(0, requestPage - 1);
+    requestSeek = null;
+    showRequestPage();
+  });
+  $("requests-older").addEventListener("click", function () {
+    requestPage += 1;
+    requestSeek = null;
+    showRequestPage();
+  });
+  $("requests-oldest").addEventListener("click", function () {
+    if (requestsNeedScan(listQuery())) requestSeek = "end";
+    else requestPage = Math.max(0, Math.ceil((requestCount || 0) / PAGE) - 1);
+    showRequestPage();
+  });
+  $("approvals-newest").addEventListener("click", function () {
+    approvalPage = 0;
+    approvalSeek = null;
+    showApprovalPage();
+  });
+  $("approvals-newer").addEventListener("click", function () {
+    approvalPage = Math.max(0, approvalPage - 1);
+    approvalSeek = null;
+    showApprovalPage();
+  });
+  $("approvals-older").addEventListener("click", function () {
+    approvalPage += 1;
+    approvalSeek = null;
+    showApprovalPage();
+  });
+  $("approvals-oldest").addEventListener("click", function () {
+    if (approvalsNeedScan(listQuery())) approvalSeek = "end";
+    else approvalPage = Math.max(0, Math.ceil((approvalCount || 0) / PAGE) - 1);
+    showApprovalPage();
+  });
+  $("status-filter").addEventListener("change", resetLists);
+  $("revoked-filter").addEventListener("change", resetLists);
+  $("search").addEventListener("input", function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(resetLists, 250);
+  });
+  $("search").addEventListener("search", resetLists);
+  $("show-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    showById($("show-id").value);
+  });
+  $("show-close").addEventListener("click", function () { $("show").close(); });
+  $("show-copy").addEventListener("click", function () {
+    if (showRequest) copyAction(showRequest.action, this);
+  });
+  $("show-approve").addEventListener("click", function () {
+    var req = showRequest;
+    $("show").close();
+    if (req) openConfirm(req, "approve");
+  });
+  $("show-reject").addEventListener("click", function () {
+    var req = showRequest;
+    $("show").close();
+    if (req) openConfirm(req, "reject");
+  });
+  $("confirm-cancel").addEventListener("click", function () { $("confirm").close(); });
+  $("confirm-go").addEventListener("click", function () {
+    var pending = confirmRequest;
+    $("confirm").close();
+    if (pending) sign(pending.kind, pending.id, pending.action);
+  });
+  $("settings").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var network = $("set-network").value;
+    var contract = $("set-contract").value.trim().toLowerCase();
+    var rpc = $("set-rpc").value.trim();
+    var hash = $("set-hash").value.trim();
+    if (!accountOk(contract)) {
+      setBanner("Contract account id is not valid.", "bad");
+      return;
+    }
+    if (!rpcAllowed(rpc)) {
+      setBanner("RPC must be HTTPS, or HTTP to localhost.", "bad");
+      return;
+    }
+    var q = new URLSearchParams();
+    if (contract !== DEFAULT_CONTRACT) q.set("contract", contract);
+    if (network !== "testnet") q.set("network", network);
+    if (rpc !== defaultRpc(network)) q.set("rpc", rpc);
+    var implicitHash = contract === DEFAULT_CONTRACT ? DEFAULT_HASH : "";
+    if (hash !== implicitHash) q.set("code_hash", hash);
+    location.search = q.toString();
+  });
+  $("set-network").addEventListener("change", function () {
+    var current = $("set-rpc").value.trim();
+    if (current === defaultRpc("testnet") || current === defaultRpc("mainnet")) {
+      $("set-rpc").value = defaultRpc($("set-network").value);
+    }
+  });
+
+  var initialStatus = params.get("status");
+  if (["pending", "approved", "rejected", "void"].indexOf(initialStatus) !== -1) $("status-filter").value = initialStatus;
+  if (params.get("q")) $("search").value = params.get("q");
+  if (params.get("keys") === "live" || params.get("keys") === "revoked") $("revoked-filter").value = params.get("keys");
+
+  renderMeta();
+  if (!accountOk(cfg.contract)) setBanner("Contract account id is not valid.", "bad");
+  else if (!rpcAllowed(cfg.rpc)) setBanner("RPC must be HTTPS, or HTTP to localhost.", "bad");
+  else {
+    initConnector();
+    refresh();
+    setInterval(function () {
+      if (!document.hidden && !signing) refresh();
+    }, 20000);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && !signing) refresh();
+    });
+  }
+})();
+  </script>
+</body>
+</html>
