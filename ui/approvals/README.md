@@ -28,11 +28,18 @@ http://127.0.0.1:8080/?contract=approvals.difflabai.testnet&network=testnet
 | `rpc` | `https://test.rpc.fastnear.com`, or `https://rpc.mainnet.near.org` on mainnet. HTTPS, or HTTP to localhost only. |
 | `code_hash` | `5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv` for the default contract. Signing stays disabled until the live `code_hash` matches. |
 | `request` | Open that request's action. |
+| `status` | `all`, or `pending`, `approved`, `rejected`, `void`. |
+| `q` | Search agent, action, key, or id. |
+| `keys` | `all`, `live`, or `revoked` on the approval log. |
 
-The page reads `get_request_count` and `get_request` at `finality: final`
-and polls while the tab is visible. It does not run an indexer. **Show
-action** opens one request: the exact action string, its length, and a hex
-dump. The request field loads an id outside the list.
+The page reads at `finality: final` and polls while the tab is visible. It
+does not run an indexer. Requests are paged by id, 50 at a time. The
+approval log is paged with `get_approvals`, also 50. A refresh re-reads the
+open page, not every request ever seen. Status and search filter requests;
+search and a revoked-key filter apply to the approval log. A filter walks
+ids until that page of matches is full, and the timer does not repeat the
+walk. **Show action** opens one request: the exact action string, its
+length, and a hex dump. The request field loads an id directly.
 
 ## Registering the wallet key
 

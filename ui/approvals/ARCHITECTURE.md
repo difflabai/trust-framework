@@ -21,16 +21,23 @@ is never parsed as HTML.
 ## Reads
 
 On load, and about every 20 seconds while the tab is visible, the page
-reads:
+reads `view_account` (for `code_hash` and the contract account's
+full-access keys), `get_owner`, `get_request_count`, and
+`get_approval_count`.
 
-- `view_account`, for `code_hash` and the contract account's full-access keys
-- `get_owner`
-- `get_request_count`, then `get_request` for the newest 50 ids
+Requests are paged by id, 50 at a time, newest page first. A refresh
+re-reads that page only. Approvals are paged with `get_approvals(from_index,
+limit)`, also 50, newest page first. A refresh re-reads that page only.
+There is no paged rejection log and no principal list; those are not paged.
 
-"Show older" extends that window by 50, up to 1000. An id last seen as
-`pending` is re-read even after it leaves the window. The contract has no
-pending index; discovery is by id. Pending requests are listed oldest
-first. Decided requests in the window sit under "Recent decisions".
+Status (all, pending, approved, rejected, void) and a search box filter
+requests. Search matches the id, agent account, action, and agent key.
+The approval log has the same search, plus a filter for whether a key
+behind the proof was later revoked. A filter walks ids, or approval-log
+pages, until the current result page is full. The walk is not repeated on
+the timer: a later refresh re-reads the visible matches and any new ids at
+the tip. The contract has no pending index, so a pending filter cannot
+skip decided history. Show action still loads one id directly.
 
 ## Showing an action
 
@@ -96,6 +103,9 @@ match on refresh is not a lock. `lock-contract.sh` removes those keys.
 | `rpc` | `https://test.rpc.fastnear.com`, or `https://rpc.mainnet.near.org` on mainnet. HTTPS, or HTTP to localhost. |
 | `code_hash` | the hash recorded for the default contract |
 | `request` | open that request's action |
+| `status` | `all` (also `pending`, `approved`, `rejected`, `void`) |
+| `q` | search string |
+| `keys` | `all` (also `live`, `revoked`) on the approval log |
 
 Run it with `python3 -m http.server` from this directory. Wallet extensions
 and the clipboard need HTTP on localhost, not `file://`.

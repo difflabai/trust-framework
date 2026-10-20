@@ -117,9 +117,14 @@
     dialog h3 { font-size: 1rem; margin: 0.9rem 0 0.25rem; }
     label { display: block; margin: 0.7rem 0 0.2rem; }
     input, select { width: 100%; }
-    #show-form { margin: 0 0 1.25rem; }
+    #show-form { margin: 0 0 1rem; }
     #show-form label { display: inline; margin: 0; }
     #show-id { width: 8rem; }
+    .filters { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin: 0 0 0.75rem; }
+    .filters label { display: inline; margin: 0; }
+    .filters select, .filters input { width: auto; }
+    #search { flex: 1 1 12rem; min-width: 12rem; }
+    .pager { margin: 0.25rem 0 1.5rem; }
     footer { margin-top: 2.5rem; color: var(--muted); font-size: 0.95rem; }
     footer .settings { color: var(--text); }
   </style>
@@ -150,15 +155,50 @@
       <input id="show-id" name="request_id" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="id">
       <button type="submit">Show action</button>
     </form>
-    <section aria-labelledby="pending-heading">
-      <h2 id="pending-heading">Pending <span id="pending-count"></span></h2>
-      <div id="pending-list"><p class="empty">Reading the contract…</p></div>
-      <p class="row"><button type="button" id="older" hidden>Show older</button></p>
+    <div class="filters">
+      <label for="status-filter">Status</label>
+      <select id="status-filter">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="void">Void</option>
+      </select>
+      <label for="search">Search</label>
+      <input id="search" type="search" placeholder="agent, action, key, or id" autocomplete="off" spellcheck="false">
+    </div>
+    <section aria-labelledby="requests-heading">
+      <h2 id="requests-heading">Requests <span id="requests-count"></span></h2>
+      <p id="requests-note" class="when"></p>
+      <div id="request-list"><p class="empty">Reading the contract…</p></div>
+      <p class="row pager">
+        <button type="button" id="requests-newest">Newest</button>
+        <button type="button" id="requests-newer">Newer</button>
+        <button type="button" id="requests-older">Older</button>
+        <button type="button" id="requests-oldest">Oldest</button>
+        <span id="requests-page" class="when"></span>
+      </p>
     </section>
-    <details id="recent-wrap" hidden>
-      <summary>Recent decisions in this window</summary>
-      <div id="recent-list"></div>
-    </details>
+    <section aria-labelledby="approvals-heading">
+      <h2 id="approvals-heading">Approval log <span id="approvals-count"></span></h2>
+      <div class="filters">
+        <label for="revoked-filter">Keys</label>
+        <select id="revoked-filter">
+          <option value="all">All</option>
+          <option value="live">Neither key revoked</option>
+          <option value="revoked">A key was revoked</option>
+        </select>
+      </div>
+      <p id="approvals-note" class="when"></p>
+      <div id="approval-list"><p class="empty">Reading the approval log…</p></div>
+      <p class="row pager">
+        <button type="button" id="approvals-newest">Newest</button>
+        <button type="button" id="approvals-newer">Newer</button>
+        <button type="button" id="approvals-older">Older</button>
+        <button type="button" id="approvals-oldest">Oldest</button>
+        <span id="approvals-page" class="when"></span>
+      </p>
+    </section>
   </main>
 
   <dialog id="show" aria-labelledby="show-title">
@@ -227,15 +267,30 @@
   var DEFAULT_HASH = "5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv";
   var DEFAULT_OWNER = "difflabai.testnet";
   var PAGE = 50;
-  var MAX_LOOKBACK = 1000;
   var GAS = "30000000000000";
   var ACCOUNT_RE = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
 
   var params = new URLSearchParams(location.search);
   var cfg = readConfig(params);
-  var lookback = PAGE;
   var requests = new Map();
+  var approvals = new Map();
   var requestCount = null;
+  var approvalCount = null;
+  var requestPage = 0;
+  var requestScan = null;
+  var requestSeek = null;
+  var requestRescan = false;
+  var requestGen = 0;
+  var requestLoading = false;
+  var requestAgain = false;
+  var approvalPage = 0;
+  var approvalScan = null;
+  var approvalSeek = null;
+  var approvalRescan = false;
+  var approvalGen = 0;
+  var approvalLoading = false;
+  var approvalAgain = false;
+  var searchTimer = null;
   var connector = null;
   var session = null;
   var signing = false;
@@ -545,30 +600,223 @@
     return article;
   }
 
+  function listQuery() {
+    return {
+      status: $("status-filter").value,
+      q: $("search").value.trim().toLowerCase(),
+      keys: $("revoked-filter").value
+    };
+  }
+
+  function requestsNeedScan(q) {
+    return q.status !== "all" || q.q !== "";
+  }
+
+  function approvalsNeedScan(q) {
+    return q.keys !== "all" || q.q !== "";
+  }
+
+  function scanKey(q) {
+    return q.status + "\n" + q.q + "\n" + q.keys;
+  }
+
+  function requestMatches(req, q) {
+    if (q.status !== "all" && req.status !== q.status) return false;
+    if (!q.q) return true;
+    return [req.request_id, req.agent_account_id, req.action, req.agent_public_key].join("\n").toLowerCase().indexOf(q.q) !== -1;
+  }
+
+  function approvalMatches(proof, q) {
+    var revoked = proof.agent_key_revoked_at || proof.approver_key_revoked_at;
+    if (q.keys === "live" && revoked) return false;
+    if (q.keys === "revoked" && !revoked) return false;
+    if (!q.q) return true;
+    return [proof.approval_index, proof.request_id, proof.action, proof.agent_account_id, proof.approver_account_id, proof.agent_public_key, proof.approver_public_key].join("\n").toLowerCase().indexOf(q.q) !== -1;
+  }
+
+  function pageBounds(count, page) {
+    var pages = Math.max(1, Math.ceil((count || 0) / PAGE));
+    var current = Math.min(Math.max(0, page), pages - 1);
+    var to = Math.max(0, (count || 0) - current * PAGE);
+    var from = Math.max(0, to - PAGE);
+    return { from: from, to: to, page: current, pages: count ? pages : 1 };
+  }
+
+  function requestBounds() {
+    return pageBounds(requestCount, requestPage);
+  }
+
+  function approvalBounds() {
+    return pageBounds(approvalCount, approvalPage);
+  }
+
+  function writeListParams() {
+    var q = new URLSearchParams(location.search);
+    var query = listQuery();
+    if (query.status === "all") q.delete("status"); else q.set("status", query.status);
+    if (!query.q) q.delete("q"); else q.set("q", $("search").value.trim());
+    if (query.keys === "all") q.delete("keys"); else q.set("keys", query.keys);
+    var next = q.toString();
+    history.replaceState(null, "", next ? "?" + next : location.pathname);
+  }
+
   function renderLists() {
-    var pending = [];
-    var recent = [];
-    requests.forEach(function (req) {
-      if (req.status === "pending") pending.push(req);
-      else recent.push(req);
-    });
-    pending.sort(function (a, b) { return a.request_id - b.request_id; });
-    recent.sort(function (a, b) { return b.request_id - a.request_id; });
-    $("pending-count").textContent = pending.length ? "(" + pending.length + ")" : "";
-    var list = $("pending-list");
+    renderRequests();
+    renderApprovals();
+  }
+
+  function renderRequests(failed) {
+    var q = listQuery();
+    var scanning = requestsNeedScan(q);
+    var count = requestCount;
+    $("requests-count").textContent = count == null ? "" : "(" + count + ")";
+    var list = $("request-list");
     list.replaceChildren();
-    if (!pending.length) {
-      list.append(el("p", { class: "empty" }, [requestCount === 0 ? "No requests on this contract." : "No pending requests in this window."]));
+    var note = "";
+    var pageLabel = "";
+    var newest = true;
+    var older = false;
+    var newer = false;
+    if (count == null) {
+      list.append(el("p", { class: "empty" }, ["Reading the contract…"]));
+    } else if (!scanning) {
+      var bounds = requestBounds();
+      var ids = [];
+      for (var i = bounds.to - 1; i >= bounds.from; i--) ids.push(i);
+      if (!ids.length) list.append(el("p", { class: "empty" }, ["No requests on this contract."]));
+      ids.forEach(function (id) {
+        var req = requests.get(id);
+        if (req) list.append(requestArticle(req, true));
+      });
+      if (ids.length) pageLabel = "Ids " + bounds.from + "–" + (bounds.to - 1) + " of " + count + " · page " + (bounds.page + 1) + " of " + bounds.pages;
+      requestPage = bounds.page;
+      newest = bounds.page === 0;
+      newer = bounds.page > 0;
+      older = bounds.from > 0;
     } else {
-      pending.forEach(function (req) { list.append(requestArticle(req, true)); });
+      var matches = requestScan ? requestScan.matches : [];
+      var start = requestPage * PAGE;
+      var visible = matches.slice(start, start + PAGE);
+      if (!visible.length) {
+        list.append(el("p", { class: "empty" }, [requestScan && requestScan.done ? "No requests match." : "Searching request ids…"]));
+      }
+      visible.forEach(function (id) {
+        var req = requests.get(id);
+        if (req) list.append(requestArticle(req, true));
+      });
+      var scanned = requestScan ? count - requestScan.cursor : 0;
+      note = "Filtered by reading request ids. The contract has no pending index.";
+      if (requestScan && !requestScan.done) note += " Scanned " + scanned + " of " + count + ".";
+      else if (requestScan) note += " " + matches.length + " match" + (matches.length === 1 ? "" : "es") + ".";
+      if (visible.length) pageLabel = "Matches " + (start + 1) + "–" + (start + visible.length);
+      newest = requestPage === 0;
+      newer = requestPage > 0;
+      older = !!(requestScan && (matches.length > start + PAGE || !requestScan.done));
     }
-    var wrap = $("recent-wrap");
-    wrap.hidden = recent.length === 0;
-    var recentList = $("recent-list");
-    recentList.replaceChildren();
-    recent.slice(0, 20).forEach(function (req) { recentList.append(requestArticle(req, false)); });
-    var from = requestCount == null ? 0 : Math.max(0, requestCount - lookback);
-    $("older").hidden = from === 0;
+    $("requests-note").textContent = note;
+    $("requests-page").textContent = pageLabel;
+    $("requests-newest").disabled = newest;
+    $("requests-newer").disabled = !newer;
+    $("requests-older").disabled = !older;
+    $("requests-oldest").disabled = scanning ? !(requestScan && !requestScan.done) : !older;
+    if (failed) $("requests-note").textContent = (note ? note + " " : "") + failed + " request" + (failed === 1 ? "" : "s") + " could not be read.";
+  }
+
+  function approvalArticle(proof) {
+    var article = el("article");
+    var heading = el("h3", {}, ["Approval " + proof.approval_index]);
+    heading.append(el("span", { class: "when" }, [" · request " + proof.request_id]));
+    article.append(el("header", {}, [
+      heading,
+      el("p", { class: "when" }, ["Approved " + formatNs(proof.approved_at_ns) + " · block " + proof.approved_at_block])
+    ]));
+    article.append(el("p", { class: "agent" }, [
+      "Agent ", el("code", {}, [proof.agent_account_id]),
+      text(" · approver "), el("code", {}, [proof.approver_account_id])
+    ]));
+    if (proof.agent_key_revoked_at || proof.approver_key_revoked_at) {
+      var who = [];
+      if (proof.agent_key_revoked_at) who.push("agent key revoked at block " + proof.agent_key_revoked_at.block);
+      if (proof.approver_key_revoked_at) who.push("approver key revoked at block " + proof.approver_key_revoked_at.block);
+      article.append(el("p", { class: "warn" }, [who.join("; ") + "."]));
+    }
+    article.append(el("details", {}, [
+      el("summary", {}, ["Action"]),
+      actionBlock(proof.action)
+    ]));
+    article.append(el("div", { class: "row" }, [
+      el("button", { type: "button", onclick: function () { openShow(requestFromProof(proof)); } }, ["Show action"])
+    ]));
+    return article;
+  }
+
+  function requestFromProof(proof) {
+    return {
+      request_id: proof.request_id,
+      status: "approved",
+      action: proof.action,
+      agent_account_id: proof.agent_account_id,
+      agent_public_key: proof.agent_public_key,
+      agent_registration_id: proof.agent_registration_id,
+      requested_at_ns: proof.requested_at_ns,
+      requested_at_block: proof.requested_at_block
+    };
+  }
+
+  function renderApprovals() {
+    var q = listQuery();
+    var scanning = approvalsNeedScan(q);
+    var count = approvalCount;
+    $("approvals-count").textContent = count == null ? "" : "(" + count + ")";
+    var list = $("approval-list");
+    list.replaceChildren();
+    var note = "";
+    var pageLabel = "";
+    var newest = true;
+    var older = false;
+    var newer = false;
+    if (count == null) {
+      list.append(el("p", { class: "empty" }, ["Reading the approval log…"]));
+    } else if (!scanning) {
+      var bounds = approvalBounds();
+      var indexes = [];
+      for (var i = bounds.to - 1; i >= bounds.from; i--) indexes.push(i);
+      if (!indexes.length) list.append(el("p", { class: "empty" }, ["No approvals on this contract."]));
+      indexes.forEach(function (index) {
+        var proof = approvals.get(index);
+        if (proof) list.append(approvalArticle(proof));
+      });
+      if (indexes.length) pageLabel = "Approvals " + bounds.from + "–" + (bounds.to - 1) + " of " + count + " · page " + (bounds.page + 1) + " of " + bounds.pages;
+      approvalPage = bounds.page;
+      newest = bounds.page === 0;
+      newer = bounds.page > 0;
+      older = bounds.from > 0;
+    } else {
+      var matches = approvalScan ? approvalScan.matches : [];
+      var start = approvalPage * PAGE;
+      var visible = matches.slice(start, start + PAGE);
+      if (!visible.length) {
+        list.append(el("p", { class: "empty" }, [approvalScan && approvalScan.done ? "No approvals match." : "Searching the approval log…"]));
+      }
+      visible.forEach(function (index) {
+        var proof = approvals.get(index);
+        if (proof) list.append(approvalArticle(proof));
+      });
+      var scanned = approvalScan ? count - approvalScan.cursor : 0;
+      note = "Filtered by reading the approval log.";
+      if (approvalScan && !approvalScan.done) note += " Scanned " + scanned + " of " + count + ".";
+      else if (approvalScan) note += " " + matches.length + " match" + (matches.length === 1 ? "" : "es") + ".";
+      if (visible.length) pageLabel = "Matches " + (start + 1) + "–" + (start + visible.length);
+      newest = approvalPage === 0;
+      newer = approvalPage > 0;
+      older = !!(approvalScan && (matches.length > start + PAGE || !approvalScan.done));
+    }
+    $("approvals-note").textContent = note;
+    $("approvals-page").textContent = pageLabel;
+    $("approvals-newest").disabled = newest;
+    $("approvals-newer").disabled = !newer;
+    $("approvals-older").disabled = !older;
+    $("approvals-oldest").disabled = scanning ? !(approvalScan && !approvalScan.done) : !older;
   }
 
   async function copyAction(action, button) {
@@ -729,48 +977,224 @@
     }
   }
 
-  async function loadWindow() {
-    var count = await view("get_request_count", {});
-    if (typeof count !== "number") throw new Error("get_request_count did not return a number");
-    requestCount = count;
-    var jump = params.get("request");
-    if (jump && /^\d+$/.test(jump)) {
-      var jumpId = Number(jump);
-      if (jumpId < count && count - jumpId > lookback) lookback = Math.min(MAX_LOOKBACK, count - jumpId);
-    }
-    var from = Math.max(0, count - lookback);
-    var ids = [];
-    for (var i = from; i < count; i++) ids.push(i);
-    requests.forEach(function (req, id) {
-      if (req.status === "pending" && ids.indexOf(id) === -1) ids.push(id);
-    });
+  async function fetchRequests(ids) {
+    var failed = 0;
+    if (!ids.length) return 0;
     var fetched = await mapPool(ids, 4, function (id) {
       return view("get_request", { request_id: id }).then(function (req) {
-        return { id: id, req: req, error: null };
-      }).catch(function (err) {
-        return { id: id, req: null, error: err };
+        return { id: id, req: req };
+      }).catch(function () {
+        return { id: id, req: null };
       });
     });
-    var failed = 0;
     fetched.forEach(function (item) {
       if (item.req) requests.set(item.id, item.req);
       else failed += 1;
     });
-    Array.from(requests.keys()).forEach(function (id) {
-      if (id < from && requests.get(id).status !== "pending") requests.delete(id);
-    });
-    renderLists();
-    $("checked").textContent = "Checked " + new Date().toLocaleTimeString() + " · " + count + " request" + (count === 1 ? "" : "s") + " on the contract.";
-    if (failed && cfg.codeOk) setBanner(failed + " request" + (failed === 1 ? "" : "s") + " could not be read. Refresh to try again.", "warn");
-    var jump = params.get("request");
-    if (jump && /^\d+$/.test(jump)) {
-      params.delete("request");
-      var shown = requests.get(Number(jump));
-      var node = document.getElementById("request-" + jump);
-      if (node) node.scrollIntoView({ block: "start" });
-      if (shown) openShow(shown);
-      else showById(jump);
+    return failed;
+  }
+
+  async function fetchApprovalRange(from, limit) {
+    if (limit <= 0) return [];
+    var proofs = await view("get_approvals", { from_index: from, limit: limit });
+    (proofs || []).forEach(function (proof) { approvals.set(proof.approval_index, proof); });
+    return proofs || [];
+  }
+
+  function touchChecked() {
+    var req = requestCount == null ? "…" : String(requestCount);
+    var ap = approvalCount == null ? "…" : String(approvalCount);
+    $("checked").textContent = "Checked " + new Date().toLocaleTimeString() + " · " + req + " requests · " + ap + " approvals.";
+  }
+
+  async function ensureRequestMatches(pageIndex, gen, q) {
+    var need = requestSeek === "end" ? Infinity : (pageIndex + 1) * PAGE;
+    while (requestScan && requestScan.matches.length < need && !requestScan.done) {
+      if (gen !== requestGen) return;
+      var end = requestScan.cursor;
+      var start = Math.max(0, end - PAGE);
+      if (start === end) {
+        requestScan.done = true;
+        break;
+      }
+      var ids = [];
+      for (var i = end - 1; i >= start; i--) ids.push(i);
+      var toFetch = ids.filter(function (id) {
+        var cached = requests.get(id);
+        return !cached || cached.status === "pending";
+      });
+      await fetchRequests(toFetch);
+      if (gen !== requestGen) return;
+      ids.forEach(function (id) {
+        var req = requests.get(id);
+        if (req && requestMatches(req, q) && requestScan.matches.indexOf(id) === -1) requestScan.matches.push(id);
+      });
+      requestScan.cursor = start;
+      if (start === 0) requestScan.done = true;
+      renderRequests();
     }
+    if (requestSeek === "end" && requestScan.done) {
+      requestPage = Math.max(0, Math.ceil(requestScan.matches.length / PAGE) - 1);
+      requestSeek = null;
+    }
+  }
+
+  function dropStaleRequestMatches(q) {
+    if (!requestScan) return;
+    var start = requestPage * PAGE;
+    var end = start + PAGE;
+    requestScan.matches = requestScan.matches.filter(function (id, idx) {
+      if (idx < start || idx >= end) return true;
+      var req = requests.get(id);
+      return req && requestMatches(req, q);
+    });
+  }
+
+  async function showRequestPage() {
+    if (requestLoading) {
+      requestAgain = true;
+      return;
+    }
+    requestLoading = true;
+    try {
+      do {
+        requestAgain = false;
+        var gen = ++requestGen;
+        var q = listQuery();
+        requestCount = await view("get_request_count", {});
+        if (typeof requestCount !== "number") throw new Error("get_request_count did not return a number");
+        if (gen !== requestGen) continue;
+        if (!requestsNeedScan(q)) {
+          requestScan = null;
+          requestSeek = null;
+          var bounds = requestBounds();
+          var ids = [];
+          for (var i = bounds.to - 1; i >= bounds.from; i--) ids.push(i);
+          var failed = await fetchRequests(ids);
+          if (gen !== requestGen) continue;
+          renderRequests(failed);
+        } else {
+          if (requestRescan || !requestScan || requestScan.key !== scanKey(q)) {
+            requestRescan = false;
+            requestScan = { cursor: requestCount, tip: requestCount, matches: [], done: requestCount === 0, key: scanKey(q) };
+            if (requestSeek !== "end") requestPage = 0;
+          } else if (requestCount > requestScan.tip) {
+            var fresh = [];
+            for (var n = requestCount - 1; n >= requestScan.tip; n--) fresh.push(n);
+            await fetchRequests(fresh);
+            if (gen !== requestGen) continue;
+            fresh.forEach(function (id) {
+              var req = requests.get(id);
+              if (req && requestMatches(req, q) && requestScan.matches.indexOf(id) === -1) requestScan.matches.unshift(id);
+            });
+            requestScan.tip = requestCount;
+          }
+          await ensureRequestMatches(requestPage, gen, q);
+          if (gen !== requestGen) continue;
+          var visible = requestScan.matches.slice(requestPage * PAGE, (requestPage + 1) * PAGE);
+          await fetchRequests(visible);
+          if (gen !== requestGen) continue;
+          dropStaleRequestMatches(q);
+          renderRequests();
+        }
+        touchChecked();
+      } while (requestAgain);
+    } finally {
+      requestLoading = false;
+    }
+  }
+
+  async function ensureApprovalMatches(pageIndex, gen, q) {
+    var need = approvalSeek === "end" ? Infinity : (pageIndex + 1) * PAGE;
+    while (approvalScan && approvalScan.matches.length < need && !approvalScan.done) {
+      if (gen !== approvalGen) return;
+      var end = approvalScan.cursor;
+      var start = Math.max(0, end - PAGE);
+      if (start === end) {
+        approvalScan.done = true;
+        break;
+      }
+      var proofs = await fetchApprovalRange(start, end - start);
+      if (gen !== approvalGen) return;
+      for (var i = proofs.length - 1; i >= 0; i--) {
+        if (approvalMatches(proofs[i], q) && approvalScan.matches.indexOf(proofs[i].approval_index) === -1) {
+          approvalScan.matches.push(proofs[i].approval_index);
+        }
+      }
+      approvalScan.cursor = start;
+      if (start === 0) approvalScan.done = true;
+      renderApprovals();
+    }
+    if (approvalSeek === "end" && approvalScan.done) {
+      approvalPage = Math.max(0, Math.ceil(approvalScan.matches.length / PAGE) - 1);
+      approvalSeek = null;
+    }
+  }
+
+  async function showApprovalPage() {
+    if (approvalLoading) {
+      approvalAgain = true;
+      return;
+    }
+    approvalLoading = true;
+    try {
+      do {
+        approvalAgain = false;
+        var gen = ++approvalGen;
+        var q = listQuery();
+        approvalCount = await view("get_approval_count", {});
+        if (typeof approvalCount !== "number") throw new Error("get_approval_count did not return a number");
+        if (gen !== approvalGen) continue;
+        if (!approvalsNeedScan(q)) {
+          approvalScan = null;
+          approvalSeek = null;
+          var bounds = approvalBounds();
+          await fetchApprovalRange(bounds.from, bounds.to - bounds.from);
+          if (gen !== approvalGen) continue;
+          renderApprovals();
+        } else {
+          if (approvalRescan || !approvalScan || approvalScan.key !== scanKey(q)) {
+            approvalRescan = false;
+            approvalScan = { cursor: approvalCount, tip: approvalCount, matches: [], done: approvalCount === 0, key: scanKey(q) };
+            if (approvalSeek !== "end") approvalPage = 0;
+          } else if (approvalCount > approvalScan.tip) {
+            var proofs = [];
+            for (var cursor = approvalScan.tip; cursor < approvalCount; cursor += PAGE) {
+              var chunk = await fetchApprovalRange(cursor, Math.min(PAGE, approvalCount - cursor));
+              if (gen !== approvalGen) break;
+              proofs = proofs.concat(chunk);
+            }
+            if (gen !== approvalGen) continue;
+            for (var i = proofs.length - 1; i >= 0; i--) {
+              if (approvalMatches(proofs[i], q) && approvalScan.matches.indexOf(proofs[i].approval_index) === -1) {
+                approvalScan.matches.unshift(proofs[i].approval_index);
+              }
+            }
+            approvalScan.tip = approvalCount;
+          }
+          await ensureApprovalMatches(approvalPage, gen, q);
+          if (gen !== approvalGen) continue;
+          renderApprovals();
+        }
+        touchChecked();
+      } while (approvalAgain);
+    } finally {
+      approvalLoading = false;
+    }
+  }
+
+  function resetLists() {
+    requestGen++;
+    approvalGen++;
+    requestPage = 0;
+    requestSeek = null;
+    requestRescan = true;
+    approvalPage = 0;
+    approvalSeek = null;
+    approvalRescan = true;
+    writeListParams();
+    showRequestPage();
+    showApprovalPage();
   }
 
   function mapPool(items, limit, fn) {
@@ -823,10 +1247,17 @@
       } else if ($("banner").classList.contains("bad") && $("banner").textContent.indexOf("code hash") !== -1) {
         setBanner("", "");
       }
-      await loadWindow();
+      await Promise.all([showRequestPage(), showApprovalPage()]);
+      var jump = params.get("request");
+      if (jump && /^\d+$/.test(jump)) {
+        params.delete("request");
+        var shown = requests.get(Number(jump));
+        if (shown) openShow(shown);
+        else showById(jump);
+      }
     } catch (err) {
       setBanner(errorText(err), "bad");
-      if (!requests.size) $("pending-list").replaceChildren(el("p", { class: "empty" }, ["Could not read the contract."]));
+      if (!requests.size) $("request-list").replaceChildren(el("p", { class: "empty" }, ["Could not read the contract."]));
     }
   }
 
@@ -940,11 +1371,64 @@
   }
 
   $("connect").addEventListener("click", connectWallet);
-  $("refresh").addEventListener("click", function () { refresh(); });
-  $("older").addEventListener("click", function () {
-    lookback = Math.min(MAX_LOOKBACK, lookback + PAGE);
+  $("refresh").addEventListener("click", function () {
+    requestRescan = true;
+    approvalRescan = true;
+    requestSeek = null;
+    approvalSeek = null;
+    requestPage = 0;
+    approvalPage = 0;
+    requestGen++;
+    approvalGen++;
     refresh();
   });
+  $("requests-newest").addEventListener("click", function () {
+    requestPage = 0;
+    requestSeek = null;
+    showRequestPage();
+  });
+  $("requests-newer").addEventListener("click", function () {
+    requestPage = Math.max(0, requestPage - 1);
+    requestSeek = null;
+    showRequestPage();
+  });
+  $("requests-older").addEventListener("click", function () {
+    requestPage += 1;
+    requestSeek = null;
+    showRequestPage();
+  });
+  $("requests-oldest").addEventListener("click", function () {
+    if (requestsNeedScan(listQuery())) requestSeek = "end";
+    else requestPage = Math.max(0, Math.ceil((requestCount || 0) / PAGE) - 1);
+    showRequestPage();
+  });
+  $("approvals-newest").addEventListener("click", function () {
+    approvalPage = 0;
+    approvalSeek = null;
+    showApprovalPage();
+  });
+  $("approvals-newer").addEventListener("click", function () {
+    approvalPage = Math.max(0, approvalPage - 1);
+    approvalSeek = null;
+    showApprovalPage();
+  });
+  $("approvals-older").addEventListener("click", function () {
+    approvalPage += 1;
+    approvalSeek = null;
+    showApprovalPage();
+  });
+  $("approvals-oldest").addEventListener("click", function () {
+    if (approvalsNeedScan(listQuery())) approvalSeek = "end";
+    else approvalPage = Math.max(0, Math.ceil((approvalCount || 0) / PAGE) - 1);
+    showApprovalPage();
+  });
+  $("status-filter").addEventListener("change", resetLists);
+  $("revoked-filter").addEventListener("change", resetLists);
+  $("search").addEventListener("input", function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(resetLists, 250);
+  });
+  $("search").addEventListener("search", resetLists);
   $("show-form").addEventListener("submit", function (event) {
     event.preventDefault();
     showById($("show-id").value);
@@ -997,6 +1481,11 @@
       $("set-rpc").value = defaultRpc($("set-network").value);
     }
   });
+
+  var initialStatus = params.get("status");
+  if (["pending", "approved", "rejected", "void"].indexOf(initialStatus) !== -1) $("status-filter").value = initialStatus;
+  if (params.get("q")) $("search").value = params.get("q");
+  if (params.get("keys") === "live" || params.get("keys") === "revoked") $("revoked-filter").value = params.get("keys");
 
   renderMeta();
   if (!accountOk(cfg.contract)) setBanner("Contract account id is not valid.", "bad");

@@ -240,8 +240,9 @@ off-chain verifier must make.
 ## Approver UI (`ui/approvals`)
 
 A single HTML file an approver opens locally. It polls `get_request_count`
-and `get_request`, shows a request's action on its own, and the approver's
-wallet signs `approve` or `reject` directly to the contract. No backend, no
-relayer, and no function-call key added on connect. Signing stays disabled
-unless the contract's `code_hash` matches the expected hash. See
+and `get_request`, pages requests and the approval log, and shows a
+request's action on its own. The approver's wallet signs `approve` or
+`reject` directly to the contract. No backend, no relayer, and no
+function-call key added on connect. Signing stays disabled unless the
+contract's `code_hash` matches the expected hash. See
 `ui/approvals/ARCHITECTURE.md`.
