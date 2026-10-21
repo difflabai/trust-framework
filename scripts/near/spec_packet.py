@@ -47,7 +47,36 @@ class Fail(Exception):
     pass
 
 
+MAX_SAFE_INT = 2**53 - 1
+
+
+def portable(value, where="packet"):
+    """Refuse what spec-kit.js would hash differently or not at all: floats
+    (JSON.parse turns 1.0 into 1), integers beyond JavaScript's safe range,
+    and object keys outside the BMP (JS sorts keys by UTF-16 code unit)."""
+    if value is None or isinstance(value, (bool, str)):
+        return
+    if isinstance(value, int):
+        if abs(value) > MAX_SAFE_INT:
+            raise Fail("%s: integer %d is outside JavaScript's safe range" % (where, value))
+        return
+    if isinstance(value, float):
+        raise Fail("%s: %r is not an integer; packets may only hold integers" % (where, value))
+    if isinstance(value, list):
+        for i, v in enumerate(value):
+            portable(v, "%s[%d]" % (where, i))
+        return
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if any(ord(c) > 0xFFFF for c in k):
+                raise Fail("%s: key %r has a character outside the BMP" % (where, k))
+            portable(v, "%s.%s" % (where, k))
+        return
+    raise Fail("%s: unsupported value %r" % (where, value))
+
+
 def canonical(value):
+    portable(value)
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 

@@ -490,7 +490,13 @@
       rejectBtn.title = rejectWhy;
       var shown = block || [approveWhy, rejectWhy].filter(Boolean).join(" ");
       why.textContent = shown;
+      staleButtons.forEach(function (s) {
+        var staleWhy = decisionBlock(entry, s.request) || (!note.value.trim() ? "Write a note saying why before rejecting." : "");
+        s.button.disabled = !!staleWhy || signing;
+        s.button.title = staleWhy;
+      });
     }
+    var staleButtons = [];
     updateButtons();
     nodes.push(decision);
 
@@ -498,15 +504,11 @@
       var stale = el("div", { class: "stack" });
       stale.append(el("p", { class: "warn" }, ["These pending requests were filed for an earlier text of this item. Approving them would sign text that is not the packet you are reading. Reject them."]));
       st.stale.forEach(function (r) {
-        var block = decisionBlock(entry, r);
-        stale.append(el("p", {}, requestLine(r).concat([text(" "), el("button", {
-          type: "button",
-          class: "danger",
-          disabled: !!block || signing,
-          title: block,
-          onclick: function () { openConfirm(entry, r, "reject", true); }
-        }, ["Reject request " + r.request_id])])));
+        var btn = el("button", { type: "button", class: "danger", onclick: function () { openConfirm(entry, r, "reject", true); } }, ["Reject request " + r.request_id]);
+        staleButtons.push({ request: r, button: btn });
+        stale.append(el("p", {}, requestLine(r).concat([text(" "), btn])));
       });
+      updateButtons();
       nodes.push(el("section", {}, [el("h3", {}, ["Outdated requests"]), stale]));
     }
 
@@ -548,6 +550,10 @@
     var block = decisionBlock(p.entry, r);
     if (block) {
       setBanner(block, "bad");
+      return;
+    }
+    if (p.kind === "reject" && !loadLocal(p.entry).note.trim()) {
+      setBanner("Write a note saying why before rejecting.", "bad");
       return;
     }
     if (p.kind === "approve" && r.action !== p.entry.action) {

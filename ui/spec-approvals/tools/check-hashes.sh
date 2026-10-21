@@ -6,7 +6,8 @@
 # the same hash and action for every item: on the given manifests (default:
 # every packets/*.json) and on a generated manifest full of awkward strings
 # (quotes, backslashes, control characters, non-ASCII, astral characters,
-# U+2028). Needs python3 and node (18+).
+# U+2028); and that spec_packet.py refuses numbers and keys the browser
+# would hash differently. Needs python3 and node (18+).
 set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 UI=$(cd "$HERE/.." && pwd -P)
@@ -54,6 +55,22 @@ for f in "$@" "$TMP/awkward.json"; do
   else
     echo "MISMATCH: $f" >&2
     fail=1
+  fi
+done
+# Values the two would hash differently must be refused by the submitter
+# (spec-kit.js refuses the last two as well, and sees 1.0 as 1).
+for bad in '"minutes": 1.0' '"minutes": 9007199254740992' '"\ud83d\ude00": 1'; do
+  python3 - "$TMP/awkward.json" "$TMP/bad.json" "$bad" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1], encoding="utf-8"))
+m["items"][0]["extra"] = json.loads("{" + sys.argv[3] + "}")
+json.dump(m, open(sys.argv[2], "w", encoding="utf-8"))
+PY
+  if python3 "$ROOT/scripts/near/spec_packet.py" check "$TMP/bad.json" >/dev/null 2>&1; then
+    echo "NOT REFUSED: spec_packet.py accepted {$bad}" >&2
+    fail=1
+  else
+    echo "ok: spec_packet.py refuses {$bad}" >&2
   fi
 done
 exit "$fail"
