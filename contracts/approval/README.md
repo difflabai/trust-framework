@@ -229,9 +229,12 @@ locally), `deploy.sh` creates the contract account, deploys and calls `new`
 in one transaction signed by the contract account, and records the
 deployment, `new-principal.sh` sets up agents and approvers with
 function-call keys scoped to this contract, and `smoke-test.sh` checks a
-deployment end to end. The default target is `approvals.difflabai.testnet`
-(deployed on testnet from `081a3a6`; see
-[`scripts/near/README.md`](../../scripts/near/README.md#current-deployment));
+deployment end to end. The account comes from `NEAR_ACCOUNT_ID` (and
+`APPROVAL_CONTRACT_ID`, which defaults to `approvals.<NEAR_ACCOUNT_ID>`).
+The testnet demonstration is `approvals.difflabai.testnet`, owned by
+`difflabai.testnet`, deployed from `081a3a6`. It can still be redeployed.
+See
+[`scripts/near/README.md`](../../scripts/near/README.md#testnet-demonstration).
 `scripts/near/sandbox.sh` runs the same flow against a local sandbox.
 
 ## Build and test

@@ -2,7 +2,7 @@
 # Usage: scripts/near/transfer.sh <receiver> <amount_NEAR> [--yes]
 #
 # Send NEAR from NEAR_ACCOUNT_ID to RECEIVER, e.g. to top up the contract's
-# storage balance:  scripts/near/transfer.sh approvals.difflabai.testnet 2
+# storage balance:  scripts/near/transfer.sh "$APPROVAL_CONTRACT_ID" 2
 # AMOUNT is exact ("1.5", "1.5 NEAR" or "1000 yoctoNEAR"). Asks for
 # confirmation on a terminal unless --yes. Refuses a named receiver that
 # does not exist.

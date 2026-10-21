@@ -3,6 +3,9 @@ name = "ledger"
 version = "0.1.0"
 edition = "2021"
 description = "Verdict ledger system with signing and multi-backend support"
+license = "MIT"
+repository = "https://github.com/difflabai/trust-framework"
+publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

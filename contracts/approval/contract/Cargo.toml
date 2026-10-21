@@ -3,6 +3,7 @@ name = "approval-contract"
 version = "0.1.0"
 edition = "2021"
 description = "NEAR contract recording agent action requests and approver sign-offs as public proofs"
+license = "MIT"
 publish = false
 repository = "https://github.com/difflabai/trust-framework"
 

@@ -1,5 +1,7 @@
 # Trust Framework Architecture
 
+Readiness of each project is in [README.md](README.md). This note is how the pieces fit. The approval contract is the one in development use. The rest is in progress.
+
 ## Overview
 
 The trust framework provides a layered security system for AI agent interactions. It combines two complementary evaluation approaches:
@@ -12,8 +14,8 @@ Both systems share the same verdict model and can be composed together: the adju
 ## Crate Structure
 
 ```
-sarajevo/
-├── adjudicator/                  # Behavior adjudicator library
+trust-framework/
+├── adjudicator/                  # Behavior adjudicator library (in progress)
 │   └── src/
 │       ├── engine.rs             # BehaviorAdjudicator - orchestrates the 5-stage pipeline
 │       ├── types.rs              # Verdict, RiskLevel, Domain, OperatingContext, etc.
@@ -22,22 +24,27 @@ sarajevo/
 │       ├── risk.rs               # Weighted risk scoring
 │       ├── audit.rs              # Append-only audit trail
 │       └── error.rs              # Error types
-├── guards/                       # Guard system workspace
+├── guards/                       # Guard system workspace (in progress)
 │   └── crates/
 │       ├── guard-core/           # Core types, Guard trait, pipeline, layers
 │       ├── guard-continuation/   # Async continuation handles
 │       ├── guard-adapters/       # Server, builder, hooks, MCP, adjudicator adapter
 │       ├── guard-eval-client/    # HTTP client for remote evaluation
-│       ├── guard-plugins/        # Pluggable backends (Prolog, FFI)
-│       └── trust-proxy/          # Sidecar reverse proxy for agent guard enforcement
+│       ├── guard-plugins/        # Pluggable backends (Prolog stub, FFI)
+│       ├── trust-proxy/          # Sidecar reverse proxy for agent guard enforcement
+│       └── trust-server/         # HTTP server binary
+├── ledger/                       # Signed verdict recording (in progress)
 ├── contracts/
-│   └── approval/                 # NEAR action-approval contract
+│   └── approval/                 # NEAR action-approval contract (development use)
 │       ├── core/                 # approval-core: state machine (no near-sdk)
 │       ├── contract/             # approval-contract: near-sdk shell, events, views
 │       └── sandbox/              # near-workspaces tests against the built wasm
+├── scripts/
+│   └── near/                     # Deploy and operate the approval contract
 ├── ui/
 │   └── approvals/                # Approver UI: one HTML file, wallet-signed approve/reject
-└── Architecture.md               # This file
+├── Architecture.md               # This file
+└── README.md
 ```
 
 ## Guard System

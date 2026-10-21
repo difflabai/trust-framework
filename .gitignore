@@ -14,3 +14,6 @@ target/
 scripts/near/.sandbox/
 scripts/near/.cache/
 scripts/near/deployments/sandbox/
+
+# Local planning notes. Not part of the published tree.
+Plans/
