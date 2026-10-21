@@ -2,12 +2,14 @@
 # Usage: scripts/near/reject.sh <approver_account> <request_id> [--key-file PATH] [--skip-checks]
 #
 # Reject pending request REQUEST_ID, signed with the approver's function-call
-# key (by default <NEAR_CREDENTIALS_DIR>/<network>/<account>.approver.json;
-# --key-file PATH for a key kept elsewhere). Frees one of the agent key's 16
-# pending slots. Prints the rejection JSON on stdout.
+# key (by default <NEAR_CREDENTIALS_DIR>/<network>/<account>.approver.json,
+# else APPROVAL_APPROVER_* in ENV_FILE; --key-file PATH for a key kept
+# elsewhere). Frees one of the agent key's 16 pending slots. Prints the
+# rejection JSON on stdout.
 #
-# Before sending, checks the request exists, is pending and was not made by
-# the approver's own account. --skip-checks sends anyway.
+# Before sending, checks the key may call reject (an approve-only key
+# can't) and is registered, and the request exists, is pending and was not
+# made by the approver's own account. --skip-checks sends anyway.
 set -euo pipefail
 NEAR_SELF=${BASH_SOURCE[0]}
 while [ -L "$NEAR_SELF" ]; do
@@ -54,6 +56,7 @@ near_require_contract
 IDARGS=$(nu json-build request_id:="$ID") || die "could not encode the arguments"
 
 if [ "$SKIP" = 0 ]; then
+  require_key_can_call "$ACCT" "$KEYFILE" reject
   REQ=$(near_view get_request "$IDARGS") || die "get_request failed"
   [ "$REQ" != null ] || die "request $ID does not exist"
   STATUS=$(jget "$REQ" status)

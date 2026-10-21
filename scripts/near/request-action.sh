@@ -4,7 +4,9 @@
 #
 # Request approval for ACTION (1 to 2048 bytes; public and stored forever, so
 # no secrets), signed with the agent's function-call key: by default the one
-# new-principal.sh stored in <NEAR_CREDENTIALS_DIR>/<network>/<account>.agent.json.
+# new-principal.sh stored in <NEAR_CREDENTIALS_DIR>/<network>/<account>.agent.json,
+# or, if none is stored, APPROVAL_AGENT_* in ENV_FILE (principal-env.sh).
+# Checks first that the key may call request_action and is registered.
 # AGENT_ACCOUNT may be a short name (<name>.<NEAR_ACCOUNT_ID>).
 # Prints the request id on stdout; the request itself and the transaction
 # link go to stderr.
@@ -71,6 +73,7 @@ else
 fi
 KEYFILE=$(require_principal_keyfile "$ACCT" agent "$KEY_FILE")
 near_require_contract
+require_key_can_call "$ACCT" "$KEYFILE" request_action
 ARGS=$(nu json-build --file action="$AFILE") || die "could not encode the action (it must be valid UTF-8)"
 
 near_call "$ACCT" "$KEYFILE" request_action "$ARGS" "Request action as $ACCT" || die "request_action failed"

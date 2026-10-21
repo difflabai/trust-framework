@@ -7,7 +7,7 @@ works from any directory, and is safe to re-run: each one checks the chain
 first and only sends what is missing.
 
 ```text
-build-wasm.sh  ->  deploy.sh  ->  new-principal.sh (agent, approver)  ->  request-action.sh / approve.sh / reject.sh
+build-wasm.sh  ->  deploy.sh  ->  new-principal.sh (agent, approver)  [-> principal-env.sh]  ->  request-action.sh / approve.sh / reject.sh
                     status.sh, view.sh, list-requests.sh, smoke-test.sh, transfer.sh, faucet-fund.sh,
                     revoke-key.sh, delete-account.sh, lock-contract.sh
 ```
@@ -64,14 +64,14 @@ different file.
 | `APPROVAL_CONTRACT_ID` | `approvals.<NEAR_ACCOUNT_ID>` | The contract account. |
 | `APPROVAL_OWNER_ID` | `NEAR_ACCOUNT_ID` | Passed to `new(owner_id)`; signs `add_agent`/`add_approver`/`revoke_key`. |
 | `APPROVAL_INITIAL_BALANCE` | computed (3 NEAR) | Balance a new contract account starts with. |
-| `SPEC_AGENT_ID` | `spec-agent` | Agent that `submit-spec-packet.sh` files packet items as (short name or account id). |
-| `SPEC_AGENT_PRIVATE_KEY` | (none) | Optional `ed25519:...` agent key of `SPEC_AGENT_ID`, registered on the contract; otherwise the stored key is used. |
 | `APPROVAL_PRINCIPAL_BALANCE` | `0.5` | Balance of accounts `new-principal.sh` creates (their own gas). |
 | `APPROVAL_WASM` | build-wasm.sh's output | Wasm for `deploy.sh`/`status.sh` (`--wasm PATH` is relative to the current directory instead). |
 | `NEAR_CREDENTIALS_DIR` | `.near-credentials` | Principal key files, `<dir>/<network>/<account>.<role>.json` (0600, gitignored). |
 | `NEAR_DEPLOYMENTS_DIR` | `scripts/near/deployments` | Deployment records, `<dir>/<network>/<contract>.json`. |
 | `NEAR_EXPLORER_TX_URL` | per network | Prefix for printed transaction links (testnet `https://testnet.nearblocks.io/txns/`). |
 | `NEAR_FAUCET_URL` | `https://helper.testnet.near.org/account` | Testnet faucet API used by `faucet-fund.sh` (https only). |
+| `APPROVAL_AGENT_ACCOUNT_ID`, `APPROVAL_AGENT_PUBLIC_KEY`, `APPROVAL_AGENT_PRIVATE_KEY` | unset | An agent's credentials, written by `principal-env.sh`. `request-action.sh <that account>` signs with them when no key file is stored for it. |
+| `APPROVAL_APPROVER_ACCOUNT_ID`, `APPROVAL_APPROVER_PUBLIC_KEY`, `APPROVAL_APPROVER_PRIVATE_KEY` | unset | The same for an approver (`approve.sh`, `reject.sh`). |
 
 Relative paths in `NEAR_CREDENTIALS_DIR`, `NEAR_DEPLOYMENTS_DIR` and
 `APPROVAL_WASM` are relative to the repo root; `~/...` is expanded, `$VARS`
@@ -110,18 +110,19 @@ seconds).
 
 | Script | What it does |
 |---|---|
-| `status.sh [--wasm PATH] [--min-available NEAR] [--check]` | Read-only overview: parent and contract balances, storage use and its staking cost (none for accounts of at most 770 bytes, NEP-448), available balance, whether the `.env` key is a full-access key of each, the contract's `code_hash` against the local wasm and the deployment record, number of full-access keys on the contract account, `get_owner`, `get_request_count`, `get_approval_count`, and the registration status of each stored principal key (registered, not registered, revoked, or scoped to another contract instance). Before the first deploy it prints what the parent needs. Warns when the contract has less than 0.5 NEAR (or `--min-available`) available. With `--check` or `--min-available` it exits 3 if anything needs attention (for cron/CI). Needs no key. |
+| `status.sh [--wasm PATH] [--min-available NEAR] [--check]` | Read-only overview: parent and contract balances, storage use and its staking cost (none for accounts of at most 770 bytes, NEP-448), available balance, whether the `.env` key is a full-access key of each, the contract's `code_hash` against the local wasm and the deployment record, number of full-access keys on the contract account, `get_owner`, `get_request_count`, `get_approval_count`, the registration status of each stored principal key (registered, not registered, revoked, or scoped to another contract instance), and the `APPROVAL_AGENT_*` / `APPROVAL_APPROVER_*` principals in `.env` with their key scope and registration (a stale, unscoped or mismatched one counts as needing attention). Before the first deploy it prints what the parent needs. Warns when the contract has less than 0.5 NEAR (or `--min-available`) available. With `--check` or `--min-available` it exits 3 if anything needs attention (for cron/CI). Needs no key. |
 | `build-wasm.sh [--ci [COMMIT] \| --local [COMMIT]]` | Get the wasm into `contracts/approval/target/near/approval_contract/approval_contract.wasm` (or `--out`) and write `approval_contract.build.json` next to it (source commit, sha256, code hash, mode, CI run). `--ci` (default) downloads CI's reproducible build of COMMIT and checks it against the sha256 the run printed. `--local` builds it with the cargo-near release pinned in the workflow, in Docker, from a clone outside the repo. COMMIT defaults to the latest non-docs commit under `contracts/approval`. |
 | `deploy.sh` | Idempotent deploy, see below. `--dry-run` shows the plan, what it costs and the exact near-cli commands, and sends nothing; it also works without `NEAR_PRIVATE_KEY` (key checks skipped). |
 | `view.sh <method> [json-args]` | Any view method, pretty-printed. |
 | `list-requests.sh [--pending] [--from N] [--limit N]` | Requests as one JSON object per line (default: the newest 50), optionally only pending ones. |
-| `new-principal.sh <name> <agent\|approver>` | Creates `<name>.<NEAR_ACCOUNT_ID>` (if needed, `--balance`, default 0.5 NEAR, minimum 0.05), generates a new keypair (or reuses the stored one, unless its registration was revoked), adds it as a function-call key restricted to the contract and the role's methods (agent: `request_action`; approver: `approve`, `reject`; unlimited allowance), registers it and notes the contract and registration id in the key file. |
+| `new-principal.sh <name> <agent\|approver>` | Creates `<name>.<NEAR_ACCOUNT_ID>` (if needed, `--balance`, default 0.5 NEAR, minimum 0.05), generates a new keypair (or reuses the stored one, unless its registration was revoked), adds it as a function-call key restricted to the contract and the role's methods (agent: `request_action`; approver: `approve`, `reject`; unlimited allowance), registers it and notes the contract, methods and registration id in the key file. `--methods` narrows the key to a subset, e.g. `--methods approve` for an approver key that cannot reject; later runs reuse the recorded methods. |
+| `principal-env.sh <name> <agent\|approver> [--replace]` | Appends a principal's stored credentials to `ENV_FILE` as `APPROVAL_AGENT_*` / `APPROVAL_APPROVER_*` (account id, public key, private key), after checking the key is a contract-scoped function-call key registered for that role. Rewrites the file atomically with mode 0600; the secret never passes through argv or stdout. Same key again: no change; a different key for the role needs `--replace`. |
 | `add-agent.sh <account> <public_key>`, `add-approver.sh <account> <public_key>` | Register a key you manage yourself. Refuses a full-access key or one scoped to another receiver or other methods unless `--force`; a key not yet on the account only gets a warning. |
 | `revoke-key.sh <public_key> [--delete-access-key [--account ACCOUNT]]` | `revoke_key`, and retires the stored key file (renamed to `<account>.<role>.revoked-<n>.json`) so the next `new-principal.sh` makes a new key. With `--delete-access-key` it also deletes the key from its account and removes the file; that also works for a key that is no longer registered. |
-| `request-action.sh <agent> <action>` | Signs `request_action` with the agent's stored key (or `--key-file PATH`); prints the request id. `--action-file PATH` (`-` for stdin) reads the action byte for byte; an action starting with `-` goes after `--`. |
-| `approve.sh <approver> <request_id> <action>` | Signs `approve` with the approver's stored key (or `--key-file PATH`); prints the proof. Checks first that the request is pending, that the action matches exactly, and that the agent isn't the approver's own account (`--skip-checks` sends anyway). The action can come from `--action-file PATH`, or, after reviewing it, from `--action-from-request`. |
-| `reject.sh <approver> <request_id>` | Signs `reject` (or with `--key-file PATH`); prints the rejection. |
-| `submit-spec-packet.sh [--packet PATH] [--item ID]... [--setup-agent] [--dry-run] [--yes]` | Files each item of a spec review packet (default `ui/spec-approvals/packets/near-approval.json`) as one request for review in [`ui/spec-approvals/`](../../ui/spec-approvals/README.md). Each action names the item and the SHA-256 of its text (`spec_packet.py`). Idempotent: items that already have a pending, approved or rejected request are skipped, and only items with void requests are filed again. The agent (`--agent`, `SPEC_AGENT_ID`, default `spec-agent`) signs with `--key-file`, `SPEC_AGENT_PRIVATE_KEY` from `.env`, or its stored key. `--setup-agent` creates and registers the stored key with `new-principal.sh` if it is missing. |
+| `request-action.sh <agent> <action>` | Signs `request_action` with the agent's stored key, else `APPROVAL_AGENT_*` from `.env` when it names this account (or `--key-file PATH`), after checking the key may call `request_action` and is registered; prints the request id. `--action-file PATH` (`-` for stdin) reads the action byte for byte; an action starting with `-` goes after `--`. |
+| `approve.sh <approver> <request_id> <action>` | Signs `approve` with the approver's stored key, else `APPROVAL_APPROVER_*` from `.env` (or `--key-file PATH`); prints the proof. Checks first that the key may call `approve` and is registered, that the request is pending, that the action matches exactly, and that the agent isn't the approver's own account (`--skip-checks` sends anyway). The action can come from `--action-file PATH`, or, after reviewing it, from `--action-from-request`. |
+| `reject.sh <approver> <request_id>` | Signs `reject` with the stored key, else `APPROVAL_APPROVER_*` from `.env` (or `--key-file PATH`); prints the rejection. Refuses before sending when the key may not call `reject` (e.g. an approve-only key). |
+| `submit-spec-packet.sh [--packet PATH] [--item ID]... [--setup-agent] [--dry-run] [--yes]` | Files each item of a spec review packet (default `ui/spec-approvals/packets/near-approval.json`) as one request for review in [`ui/spec-approvals/`](../../ui/spec-approvals/README.md). Each action names the item and the SHA-256 of its text (`spec_packet.py`). Idempotent: items that already have a pending, approved or rejected request are skipped, and only items with void requests are filed again. The agent (`--agent`, else `APPROVAL_AGENT_ACCOUNT_ID`, else `spec-agent`) signs as `request-action.sh` does: `--key-file`, its stored key, or `APPROVAL_AGENT_*` from `.env`. `--setup-agent` creates and registers the stored key with `new-principal.sh` if it is missing. |
 | `smoke-test.sh [--cleanup]` | End-to-end check: ensures `smoke-agent` and `smoke-approver` principals, requests, approves and rejects, and asserts `get_approval`, `get_request` and `get_rejection`. `--cleanup` revokes their keys and deletes both accounts. |
 | `transfer.sh <receiver> <amount> [--yes]` | Sends NEAR from `NEAR_ACCOUNT_ID`, e.g. to top up the contract's storage balance. |
 | `faucet-fund.sh [<receiver>] [--rounds N]` | Testnet only: tops up an existing account (default `NEAR_ACCOUNT_ID`) with 10 NEAR per round from the testnet faucet, which only funds new accounts: each round has the faucet create a throwaway `tf-faucet-….testnet` account and then deletes it with the receiver as beneficiary. Needs no `NEAR_PRIVATE_KEY`. If a deletion fails, the throwaway key is kept and `--recover KEYFILE` finishes the round. Uses `NEAR_FAUCET_URL` (default `https://helper.testnet.near.org/account`; near-cli's own default host fails TLS). |
@@ -241,11 +242,31 @@ Key files land in `.near-credentials/testnet/<account>.<role>.json` (mode
 0600, gitignored; keep a backup if the principal matters). To rotate a key:
 `scripts/near/revoke-key.sh <old_public_key> --delete-access-key`, then
 `scripts/near/new-principal.sh <name> <role>` generates and registers a new
-one. `revoke-key.sh` retires the stored file even without
+one (repeat `--methods` if the old key was narrowed; `revoke-key.sh` prints
+the exact command), then `scripts/near/principal-env.sh <name> <role>
+--replace` if the old key was in `.env`. `revoke-key.sh` retires the stored file even without
 `--delete-access-key` (renamed to `<account>.<role>.revoked-<n>.json`), so
 the revoked key is never re-registered by accident; `new-principal.sh` also
 refuses a stored key whose recorded registration was revoked. Revocation
 voids the old key's pending requests for good.
+
+To keep a principal's credentials in `.env` (e.g. for other tools, or a
+fresh checkout without `.near-credentials/`), export them with
+`principal-env.sh`. The signing scripts fall back to those variables when
+no key file is stored for the account, and `status.sh` lists them:
+
+```bash
+scripts/near/new-principal.sh approver1 approver --methods approve   # may approve, not reject
+scripts/near/principal-env.sh agent1 agent        # APPROVAL_AGENT_ACCOUNT_ID / _PUBLIC_KEY / _PRIVATE_KEY
+scripts/near/principal-env.sh approver1 approver  # APPROVAL_APPROVER_*
+```
+
+A function-call key only limits which **change** methods its holder can
+sign. View methods (`get_request`, `get_approval`, `get_owner`, ...) need
+no key at all: anyone can call them over RPC (`view.sh`). Each principal
+account also carries `NEAR_ACCOUNT_ID`'s full-access key, so the operator
+can top it up, rotate its keys or delete it; the scoped key is the one the
+agent or approver holds.
 
 A real approver should not use a key from this repo's credentials dir:
 generate it elsewhere, register it with `add-approver.sh`, and sign with

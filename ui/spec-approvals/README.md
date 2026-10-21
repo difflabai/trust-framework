@@ -35,12 +35,17 @@ this directory: the page loads `../shared/`. Use HTTP on localhost, not
 
    ```bash
    scripts/near/submit-spec-packet.sh --dry-run        # plan; sends nothing
-   scripts/near/submit-spec-packet.sh --setup-agent    # first run: creates spec-agent.<NEAR_ACCOUNT_ID>
+   scripts/near/submit-spec-packet.sh                  # files as the .env agent (APPROVAL_AGENT_*)
+   scripts/near/submit-spec-packet.sh --setup-agent    # or, with no agent in .env: creates spec-agent.<NEAR_ACCOUNT_ID>
    ```
 
    The script reads its credentials from `.env`, like every script in
-   `scripts/near/` (see [its README](../../scripts/near/README.md)). It is
-   idempotent: re-running it files only the items that are missing.
+   `scripts/near/` (see [its README](../../scripts/near/README.md)). The
+   agent is `APPROVAL_AGENT_ACCOUNT_ID` when `.env` has one (set by
+   `principal-env.sh`, signing with `APPROVAL_AGENT_PRIVATE_KEY`), else
+   `spec-agent.<NEAR_ACCOUNT_ID>`. Open the page with `?agent=<that account>`
+   if it is not `spec-agent`. The script is idempotent: re-running it files
+   only the items that are missing.
 
 2. The owner registers the reviewer's wallet key as an approver:
 

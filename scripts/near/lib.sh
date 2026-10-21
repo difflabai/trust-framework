@@ -159,7 +159,9 @@ near_tmp_init() {
 NEAR_ENV_KEYS="NEAR_NETWORK NEAR_RPC_URL NEAR_EXPLORER_TX_URL NEAR_ACCOUNT_ID NEAR_PRIVATE_KEY
 NEAR_PUBLIC_KEY NEAR_CREDENTIALS_DIR NEAR_DEPLOYMENTS_DIR NEAR_CLI_BIN NEAR_CACHE_DIR
 APPROVAL_CONTRACT_ID APPROVAL_OWNER_ID APPROVAL_INITIAL_BALANCE APPROVAL_WASM APPROVAL_PRINCIPAL_BALANCE
-SANDBOX_DIR SANDBOX_RPC_PORT NEAR_FAUCET_URL SPEC_AGENT_ID SPEC_AGENT_PRIVATE_KEY"
+SANDBOX_DIR SANDBOX_RPC_PORT NEAR_FAUCET_URL
+APPROVAL_AGENT_ACCOUNT_ID APPROVAL_AGENT_PUBLIC_KEY APPROVAL_AGENT_PRIVATE_KEY
+APPROVAL_APPROVER_ACCOUNT_ID APPROVAL_APPROVER_PUBLIC_KEY APPROVAL_APPROVER_PRIVATE_KEY"
 NEAR_ENV_KEYS=$(printf '%s' "$NEAR_ENV_KEYS" | tr '\n' ' ')
 NEAR_PRIVATE_KEY_FROM_FILE=0
 load_env_file() {
@@ -213,14 +215,14 @@ _load_env_file() {
       *)
         case $key in
           NEAR_ALLOW_MAINNET | NEAR_ALLOW_INSECURE_RPC) warn "$file:$n: $key is ignored in a file; set it in the environment" ;;
-          NEAR_* | APPROVAL_* | SANDBOX_* | SPEC_*) warn "$file:$n: unknown setting $key (ignored)" ;;
+          NEAR_* | APPROVAL_* | SANDBOX_*) warn "$file:$n: unknown setting $key (ignored)" ;;
         esac
         continue
         ;;
     esac
     if [ -n "${!key+x}" ]; then continue; fi
     printf -v "$key" '%s' "$value"
-    if [ "$key" = NEAR_PRIVATE_KEY ] && [ -n "$value" ]; then NEAR_PRIVATE_KEY_FROM_FILE=1; fi
+    case $key in *_PRIVATE_KEY) [ -z "$value" ] || NEAR_PRIVATE_KEY_FROM_FILE=1 ;; esac
   done <"$file"
 }
 
@@ -326,7 +328,7 @@ near_load_config() {
   if [ "$NEAR_PRIVATE_KEY_FROM_FILE" = 1 ]; then
     local mode
     mode=$(nu file-mode "$ENV_FILE" 2>/dev/null || echo 0600)
-    case $mode in *00) ;; *) warn "$ENV_FILE (mode $mode) holds NEAR_PRIVATE_KEY and is readable by others; run: chmod 600 '$ENV_FILE'" ;; esac
+    case $mode in *00) ;; *) warn "$ENV_FILE (mode $mode) holds private keys (NEAR_PRIVATE_KEY / APPROVAL_*_PRIVATE_KEY) and is readable by others; run: chmod 600 '$ENV_FILE'" ;; esac
   fi
 
   if [ "$NEAR_NETWORK" = mainnet ] && [ "${NEAR_ALLOW_MAINNET:-}" != 1 ]; then
@@ -460,7 +462,7 @@ EOF
 near_run() {
   near_cli_init
   local rc=0
-  env -u NEAR_PRIVATE_KEY HOME="$NEAR_CLI_HOME" XDG_CONFIG_HOME="$NEAR_CLI_HOME/.config" NO_COLOR=1 \
+  env -u NEAR_PRIVATE_KEY -u APPROVAL_AGENT_PRIVATE_KEY -u APPROVAL_APPROVER_PRIVATE_KEY HOME="$NEAR_CLI_HOME" XDG_CONFIG_HOME="$NEAR_CLI_HOME/.config" NO_COLOR=1 \
     "$NEAR_BIN" "$@" </dev/null >"$NEAR_TMP/out.raw" 2>"$NEAR_TMP/err.raw" || rc=$?
   nu filter-cli <"$NEAR_TMP/err.raw" >"$NEAR_TMP/err" || cp /dev/null "$NEAR_TMP/err"
   nu filter-cli <"$NEAR_TMP/out.raw" >"$NEAR_TMP/out" || cp /dev/null "$NEAR_TMP/out"
@@ -721,6 +723,84 @@ role_methods() {
     *) die "role must be agent or approver (got '$1')" ;;
   esac
 }
+# methods_norm LIST: comma-separated method names -> trimmed, sorted,
+# de-duplicated, empty items dropped.
+methods_norm() {
+  printf '%s\n' "$1" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;/^$/d' | LC_ALL=C sort -u | paste -sd, -
+}
+# methods_subset ROLE LIST: is LIST a non-empty subset of ROLE's methods?
+# (An empty method list on a NEAR function-call key allows every method.)
+methods_subset() {
+  local all rest m
+  all=$(role_methods "$1")
+  [ -n "$2" ] || return 1
+  rest="$2,"
+  while [ -n "$rest" ]; do
+    m=${rest%%,*}
+    rest=${rest#*,}
+    case $m in '' | *[!a-z_]*) return 1 ;; esac
+    case ",$all," in *",$m,"*) ;; *) return 1 ;; esac
+  done
+  return 0
+}
+# role_scope ROLE [LIST]: the validated method list for ROLE's function-call
+# key: all of the role's methods by default, or a subset of them (e.g. an
+# approver key that may approve but not reject).
+role_scope() {
+  local list
+  case ${2:-} in *[!a-z_,]*) die "--methods takes comma-separated method names without spaces (got '$2'), e.g. approve or approve,reject" ;; esac
+  list=$(methods_norm "${2:-$(role_methods "$1")}")
+  methods_subset "$1" "$list" || die "methods '${2:-}' are not a non-empty subset of the $1 methods ($(role_methods "$1"))"
+  printf '%s\n' "$list"
+}
+# key_methods ACCESS_KEY_JSON: the key's method names, normalised; "*" when
+# NEAR lets it call every method of its receiver (empty list).
+key_methods() {
+  if [ "$(printf '%s' "$1" | nu json-get method_names --join ,)" = "" ] &&
+    [ "$(printf '%s' "$1" | nu json-get method_names)" = '[]' ]; then
+    printf '*\n'
+  else
+    printf '%s\n' "$(printf '%s' "$1" | nu json-get method_names --join , | tr ',' '\n' | LC_ALL=C sort -u | paste -sd, -)"
+  fi
+}
+# principal_env_prefix ROLE: prefix of the principal's settings in ENV_FILE
+# (written by principal-env.sh).
+principal_env_prefix() {
+  case $1 in
+    agent) echo APPROVAL_AGENT ;;
+    approver) echo APPROVAL_APPROVER ;;
+    *) die "role must be agent or approver (got '$1')" ;;
+  esac
+}
+# principal_env_keyfile ACCOUNT ROLE: when ENV_FILE holds this principal's
+# key (<PREFIX>_ACCOUNT_ID = ACCOUNT and <PREFIX>_PRIVATE_KEY), write it to a
+# 0600 temp key file and print its path; return 1 otherwise.
+principal_env_keyfile() {
+  local p acct_var key_var pub_var f pk="" rc=0
+  p=$(principal_env_prefix "$2")
+  acct_var=${p}_ACCOUNT_ID key_var=${p}_PRIVATE_KEY pub_var=${p}_PUBLIC_KEY
+  [ "${!acct_var:-}" = "$1" ] || return 1
+  f="$NEAR_TMP/key.env.$2.json"
+  { xtrace_off; } 2>/dev/null
+  if [ -z "${!key_var:-}" ]; then
+    rc=2
+  else
+    pk=$(printf '%s' "${!key_var}" | nu write-keyfile --account "$1" --out "$f" 2>/dev/null) || rc=1
+  fi
+  xtrace_on
+  [ "$rc" != 2 ] || return 1
+  if [ "$rc" != 0 ]; then
+    printf '%serror:%s %s in %s is not a valid ed25519 secret key.\n' "$C_RED" "$C_OFF" "$key_var" "$ENV_FILE" >&2
+    return 3
+  fi
+  if [ -n "${!pub_var:-}" ] && [ "${!pub_var}" != "$pk" ]; then
+    rm -f "$f"
+    printf '%serror:%s %s (%s) does not match the public key of %s (%s) in %s.\n' "$C_RED" "$C_OFF" \
+      "$pub_var" "${!pub_var}" "$key_var" "$pk" "$ENV_FILE" >&2
+    return 3
+  fi
+  printf '%s\n' "$f"
+}
 # require_principal_keyfile ACCOUNT ROLE [KEY_FILE] -> path of a near-cli
 # access-key file for ACCOUNT (validated, no secret printed): KEY_FILE if
 # given (a key held outside this repo, e.g. by an independent approver),
@@ -732,8 +812,14 @@ require_principal_keyfile() {
     case $f in /*) ;; *) f="$PWD/$f" ;; esac
   else
     f=$(principal_keyfile "$1" "$2")
-    [ -f "$f" ] || die "No $2 key stored for $1 ($f)." "Create it with: scripts/near/new-principal.sh $1 $2" \
-      "or pass --key-file PATH (a near-cli access-key file {account_id, public_key, private_key})."
+    if [ ! -f "$f" ]; then
+      f=$(principal_env_keyfile "$1" "$2") || {
+        [ "$?" = 1 ] || exit 1
+        die "No $2 key stored for $1 ($(principal_keyfile "$1" "$2"))." "Create it with: scripts/near/new-principal.sh $1 $2" \
+          "or set $(principal_env_prefix "$2")_ACCOUNT_ID=$1 and $(principal_env_prefix "$2")_PRIVATE_KEY in $ENV_FILE (principal-env.sh)," \
+          "or pass --key-file PATH (a near-cli access-key file {account_id, public_key, private_key})."
+      }
+    fi
   fi
   info=$(nu keyfile-info "$f") || die "Key file $f is invalid."
   acct=$(jget "$info" account_id)
@@ -776,16 +862,16 @@ register_principal() {
   ok "registered $pk as $role of $acct (registration $(jget "$PRINCIPAL_JSON" registration_id))"
 }
 
-# check_principal_access_key ACCOUNT ROLE PUBLIC_KEY: is the key a
-# function-call key of ACCOUNT scoped to the contract and the role's methods
-# (the contract's authorization model relies on it)? Returns 0 if so, 1 if
-# the key is not on the account at all, 2 (after a warning) if it is a
-# full-access key or scoped to another receiver or other methods. Sets
-# PRINCIPAL_KEY_JSON.
+# check_principal_access_key ACCOUNT ROLE PUBLIC_KEY [METHODS]: is the key a
+# function-call key of ACCOUNT scoped to the contract and to METHODS (if
+# given), or else to a non-empty subset of the role's methods? Returns 0 if
+# so, 1 if the key is not on the account, 2 if it is but differently scoped
+# (after a warning). Sets PRINCIPAL_KEY_JSON and PRINCIPAL_KEY_METHODS.
 check_principal_access_key() {
-  local acct=$1 role=$2 pk=$3 k methods
+  local acct=$1 role=$2 pk=$3 want=${4:-} k methods expected
   k=$(near_key_permission "$acct" "$pk")
   PRINCIPAL_KEY_JSON=$k
+  PRINCIPAL_KEY_METHODS=""
   if [ "$(jget "$k" exists)" != true ]; then
     return 1
   fi
@@ -794,13 +880,61 @@ check_principal_access_key() {
       "(see contracts/approval/README.md, Authorization model); scripts/near/new-principal.sh sets that up."
     return 2
   fi
-  methods=$(printf '%s' "$k" | nu json-get method_names --join ,)
-  if [ "$(jget "$k" receiver_id)" != "$APPROVAL_CONTRACT_ID" ] || [ "$methods" != "$(role_methods "$role")" ]; then
-    warn "$pk on $acct is a function-call key for $(jget "$k" receiver_id) [$methods];" \
-      "expected receiver $APPROVAL_CONTRACT_ID with methods [$(role_methods "$role")]."
+  methods=$(key_methods "$k")
+  PRINCIPAL_KEY_METHODS=$methods
+  if [ -n "$want" ]; then
+    expected="[$(methods_norm "$want")]"
+  else
+    expected="a non-empty subset of [$(role_methods "$role")]"
+  fi
+  if [ "$(jget "$k" receiver_id)" != "$APPROVAL_CONTRACT_ID" ] ||
+    { [ -n "$want" ] && [ "$methods" != "$(methods_norm "$want")" ]; } ||
+    { [ -z "$want" ] && ! methods_subset "$role" "$methods"; }; then
+    warn "$pk on $acct is a function-call key for $(jget "$k" receiver_id) [$(methods_label "$methods")];" \
+      "expected receiver $APPROVAL_CONTRACT_ID with methods $expected."
     return 2
   fi
   return 0
+}
+
+# require_key_can_call ACCOUNT KEYFILE METHOD: fail before sending when the
+# key in KEYFILE is not an access key of ACCOUNT allowed to call METHOD on
+# the contract (NEAR would reject the transaction).
+require_key_can_call() {
+  local acct=$1 info pk k methods
+  info=$(nu keyfile-info "$2") || die "invalid key file $2"
+  pk=$(jget "$info" public_key)
+  k=$(near_key_permission "$acct" "$pk")
+  [ "$(jget "$k" exists)" = true ] || die "$pk (from $2) is not an access key of $acct."
+  # A full-access key may call anything; only its registration matters.
+  if [ "$(jget "$k" permission)" != FullAccess ]; then
+    [ "$(jget "$k" receiver_id)" = "$APPROVAL_CONTRACT_ID" ] ||
+      die "$pk of $acct is a function-call key for $(jget "$k" receiver_id), not $APPROVAL_CONTRACT_ID."
+    methods=$(key_methods "$k")
+    case ",$methods," in
+      ,\*, | *",$3,"*) ;;
+      *) die "$pk of $acct may not call $3: it is scoped to [$(methods_label "$methods")] on $APPROVAL_CONTRACT_ID." \
+        "Use a key whose scope includes $3." ;;
+    esac
+  fi
+  # The contract also requires the key to be registered for the method's
+  # role; a revoked key (e.g. still in .env) would only fail on chain.
+  local role=approver p
+  [ "$3" != request_action ] || role=agent
+  p=$(near_view get_principal "$(nu json-build public_key="$pk")") || die "get_principal failed"
+  if [ "$p" = null ] || [ "$(jget "$p" account_id)" != "$acct" ] || [ "$(jget "$p" role)" != "$role" ]; then
+    die "$pk is not registered as $role of $acct in $APPROVAL_CONTRACT_ID (revoked or never added); the contract would refuse $3." \
+      "Set up a key with: scripts/near/new-principal.sh $acct $role" \
+      "and, if it came from $ENV_FILE, refresh that: scripts/near/principal-env.sh $acct $role --replace"
+  fi
+}
+# methods_label METHODS: key_methods output for messages.
+methods_label() {
+  case $1 in
+    '*') printf 'all methods\n' ;;
+    '') printf 'no methods\n' ;;
+    *) printf '%s\n' "$1" ;;
+  esac
 }
 
 # action_to_file ACTION_ARG ACTION_FILE: the action text, verbatim, in a

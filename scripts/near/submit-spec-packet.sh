@@ -15,14 +15,14 @@
 # them (the contract has no cancel), so the reviewer should reject them.
 #
 # Credentials come from .env (ENV_FILE), like every script here. The agent
-# (--agent, else SPEC_AGENT_ID, else spec-agent; a short name means
-# <name>.<NEAR_ACCOUNT_ID>) signs with, in order:
-#   --key-file PATH           a near-cli access-key file
-#   SPEC_AGENT_PRIVATE_KEY    an agent key in .env, registered on the contract
-#   the stored key            <NEAR_CREDENTIALS_DIR>/<network>/<agent>.agent.json
-# --setup-agent creates and registers the stored key first when it is
-# missing (new-principal.sh: the .env key NEAR_PRIVATE_KEY of NEAR_ACCOUNT_ID
-# pays 0.5 NEAR for the account and signs add_agent as the owner).
+# is --agent, else APPROVAL_AGENT_ACCOUNT_ID, else spec-agent (a short name
+# means <name>.<NEAR_ACCOUNT_ID>). It signs the way request-action.sh does:
+# --key-file PATH, else the stored key
+# <NEAR_CREDENTIALS_DIR>/<network>/<agent>.agent.json, else APPROVAL_AGENT_*
+# in .env when it names the agent (principal-env.sh). --setup-agent creates
+# and registers a stored key first when there is none (new-principal.sh: the
+# .env key NEAR_PRIVATE_KEY of NEAR_ACCOUNT_ID pays 0.5 NEAR for the account
+# and signs add_agent as the owner).
 #
 # The reviewer must use a different account than the agent: the contract
 # refuses approve/reject from the account that filed the request.
@@ -32,7 +32,7 @@
 # Options:
 #   --packet PATH   manifest (default ui/spec-approvals/packets/near-approval.json)
 #   --item ID       only this item (repeatable)
-#   --agent NAME    agent account (overrides SPEC_AGENT_ID)
+#   --agent NAME    agent account (overrides APPROVAL_AGENT_ACCOUNT_ID)
 #   --key-file PATH sign with this key file
 #   --setup-agent   create and register the agent's stored key if missing
 #   --dry-run       show the plan, send nothing (needs no key)
@@ -89,7 +89,7 @@ case $PACKET in /*) ;; *) PACKET="$PWD/$PACKET" ;; esac
 near_load_config
 SPY() { "$NEAR_PYTHON" -I -X utf8 "$NEAR_SCRIPTS_DIR/spec_packet.py" "$@"; }
 SPY check "$PACKET" >/dev/null || die "invalid packet manifest $PACKET"
-AGENT=$(principal_account "${AGENT_ARG:-${SPEC_AGENT_ID:-spec-agent}}")
+AGENT=$(principal_account "${AGENT_ARG:-${APPROVAL_AGENT_ACCOUNT_ID:-spec-agent}}")
 near_require_contract
 
 # Every request on the contract (get_request per id; there is no index).
@@ -131,27 +131,16 @@ if [ "$DRY" = 1 ]; then
   exit 0
 fi
 
-# The agent's signing key.
-if [ -z "$KEY_FILE" ] && [ -n "${SPEC_AGENT_PRIVATE_KEY:-}" ]; then
-  KEY_FILE="$NEAR_TMP/key.spec-agent.json"
-  { xtrace_off; } 2>/dev/null
-  printf '%s' "$SPEC_AGENT_PRIVATE_KEY" | nu write-keyfile --account "$AGENT" --out "$KEY_FILE" >/dev/null ||
-    { xtrace_on; die "SPEC_AGENT_PRIVATE_KEY is not a valid ed25519 secret key"; }
-  xtrace_on
-fi
-if [ -z "$KEY_FILE" ] && [ ! -f "$(principal_keyfile "$AGENT" agent)" ]; then
+# The agent's signing key, resolved and checked as request-action.sh does.
+if [ -z "$KEY_FILE" ] && [ ! -f "$(principal_keyfile "$AGENT" agent)" ] &&
+  [ "${APPROVAL_AGENT_ACCOUNT_ID:-}" != "$AGENT" ]; then
   [ "$SETUP" = 1 ] || die "No agent key for $AGENT." \
-    "Pass --setup-agent to create and register one (new-principal.sh), set SPEC_AGENT_PRIVATE_KEY in .env, or pass --key-file PATH."
+    "Pass --setup-agent to create and register one (new-principal.sh), put it in .env (principal-env.sh), or pass --key-file PATH."
   info "setting up $AGENT as an agent (new-principal.sh)"
   ENV_FILE=$ENV_FILE "$NEAR_SCRIPTS_DIR/new-principal.sh" "$AGENT" agent >/dev/null || die "new-principal.sh $AGENT agent failed"
 fi
 KEYFILE=$(require_principal_keyfile "$AGENT" agent "$KEY_FILE")
-PK=$(jget "$(nu keyfile-info "$KEYFILE")" public_key)
-PRINCIPAL=$(near_view get_principal "$(nu json-build public_key="$PK")") || die "get_principal failed"
-[ "$PRINCIPAL" != null ] || die "The agent key $PK is not registered on $APPROVAL_CONTRACT_ID." \
-  "Register it with: scripts/near/add-agent.sh $AGENT $PK (or use --setup-agent)."
-[ "$(jget "$PRINCIPAL" role)" = agent ] || die "$PK is registered as $(jget "$PRINCIPAL" role), not agent."
-[ "$(jget "$PRINCIPAL" account_id)" = "$AGENT" ] || die "$PK is registered to $(jget "$PRINCIPAL" account_id), not $AGENT."
+require_key_can_call "$AGENT" "$KEYFILE" request_action
 
 confirm "File ${#TODO[@]} request(s) as $AGENT on $APPROVAL_CONTRACT_ID ($NEAR_NETWORK)?"
 ADIR="$NEAR_TMP/spec-actions"
@@ -163,4 +152,4 @@ for id in "${TODO[@]}"; do
   ok "item $id is request $rid"
   printf '%s\t%s\n' "$id" "$rid"
 done
-info "review them in ui/spec-approvals/ (see its README for how to run it)"
+info "review them in ui/spec-approvals/?agent=$AGENT (see its README for how to run it)"
