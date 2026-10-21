@@ -3,6 +3,8 @@ name = "approval-sandbox-tests"
 version = "0.1.0"
 edition = "2021"
 description = "near-workspaces tests that run the approval contract wasm in a local NEAR sandbox"
+license = "MIT"
+repository = "https://github.com/difflabai/trust-framework"
 publish = false
 
 [dependencies]

@@ -16,8 +16,9 @@ the page loads `../shared/` (code shared with
 not `file://`: wallet extensions and the clipboard do not reliably work from
 a file URL. No install and no build.
 
-The default bookmark is the testnet deployment,
-`approvals.difflabai.testnet`. Override it in the query string:
+The page opens on the testnet demonstration,
+`approvals.difflabai.testnet`. It can still be redeployed. Override the
+account in the query string:
 
 ```text
 http://127.0.0.1:8080/approvals/?contract=approvals.difflabai.testnet&network=testnet
@@ -25,10 +26,10 @@ http://127.0.0.1:8080/approvals/?contract=approvals.difflabai.testnet&network=te
 
 | Param | Default |
 |---|---|
-| `contract` | `approvals.difflabai.testnet` |
+| `contract` | `approvals.difflabai.testnet` (testnet demonstration) |
 | `network` | `testnet` (`mainnet` is the other accepted value) |
 | `rpc` | `https://test.rpc.fastnear.com`, or `https://rpc.mainnet.near.org` on mainnet. HTTPS, or HTTP to localhost only. |
-| `code_hash` | `5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv` for the default contract. Signing stays disabled until the live `code_hash` matches. |
+| `code_hash` | `5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv` for the testnet demonstration. Signing stays disabled until the live `code_hash` matches. |
 | `request` | Open that request's action. |
 | `status` | `all`, or `pending`, `approved`, `rejected`, `void`. |
 | `q` | Search agent, action, key, or id. |

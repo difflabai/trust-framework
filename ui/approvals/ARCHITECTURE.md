@@ -96,7 +96,7 @@ advertise testnet, so it is not listed. WalletConnect is not configured.
 ## Contract check
 
 Signing is disabled unless `view_account.code_hash` equals the expected
-hash. The default pair is `approvals.difflabai.testnet` /
+hash. The testnet demonstration pair is `approvals.difflabai.testnet` /
 `5G334oPHzjDvPLXKUSstbaf3BzUPaj1sWZnDhy5Baauv`. Another deployment sets
 `?code_hash=`. An empty expected hash does not skip the check.
 
@@ -105,10 +105,10 @@ match on refresh is not a lock. `lock-contract.sh` removes those keys.
 
 | Param | Default |
 |---|---|
-| `contract` | `approvals.difflabai.testnet` |
+| `contract` | `approvals.difflabai.testnet` (testnet demonstration) |
 | `network` | `testnet` (`mainnet` is the other value passed to the connector) |
 | `rpc` | `https://test.rpc.fastnear.com`, or `https://rpc.mainnet.near.org` on mainnet. HTTPS, or HTTP to localhost. |
-| `code_hash` | the hash recorded for the default contract |
+| `code_hash` | the hash recorded for the testnet demonstration |
 | `request` | open that request's action |
 | `status` | `all` (also `pending`, `approved`, `rejected`, `void`) |
 | `q` | search string |

@@ -280,7 +280,7 @@ near_load_config() {
       # dozen calls a minute, which a smoke test exceeds.
       default_rpc=https://test.rpc.fastnear.com
       default_explorer=https://testnet.nearblocks.io/txns/
-      default_account=difflabai.testnet
+      default_account=""
       ;;
     mainnet)
       default_rpc=https://rpc.mainnet.near.org
@@ -308,7 +308,7 @@ near_load_config() {
   case $NEAR_RPC_URL in *[[:space:]\"\\]*) die "NEAR_RPC_URL contains spaces, quotes or backslashes." ;; esac
   NEAR_EXPLORER_TX_URL=${NEAR_EXPLORER_TX_URL-$default_explorer}
   NEAR_ACCOUNT_ID=${NEAR_ACCOUNT_ID:-$default_account}
-  [ -n "$NEAR_ACCOUNT_ID" ] || die "NEAR_ACCOUNT_ID is not set (no default on $NEAR_NETWORK)."
+  [ -n "$NEAR_ACCOUNT_ID" ] || die "NEAR_ACCOUNT_ID is not set. Set it in the environment or .env (no default on $NEAR_NETWORK)."
   require_account_id NEAR_ACCOUNT_ID "$NEAR_ACCOUNT_ID"
   APPROVAL_CONTRACT_ID=${APPROVAL_CONTRACT_ID:-approvals.$NEAR_ACCOUNT_ID}
   require_account_id APPROVAL_CONTRACT_ID "$APPROVAL_CONTRACT_ID"

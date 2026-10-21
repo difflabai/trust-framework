@@ -3,6 +3,8 @@ name = "approval-core"
 version = "0.1.0"
 edition = "2021"
 description = "Pure state machine for the NEAR action-approval contract (no near-sdk dependency)"
+license = "MIT"
+repository = "https://github.com/difflabai/trust-framework"
 publish = false
 
 [features]

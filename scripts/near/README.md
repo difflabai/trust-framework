@@ -1,10 +1,9 @@
 # NEAR operations for the approval contract
 
 Scripts to deploy and operate [the approval contract](../../contracts/approval/README.md)
-on NEAR, repeatably: by default on testnet, as `approvals.difflabai.testnet`,
-owned and paid for by `difflabai.testnet`. Every script takes `-h`/`--help`,
-works from any directory, and is safe to re-run: each one checks the chain
-first and only sends what is missing.
+on NEAR. The account comes from `NEAR_ACCOUNT_ID`. There is no default.
+Every script takes `-h`/`--help`, works from any directory, and is safe to
+re-run: each one checks the chain first and only sends what is missing.
 
 ```text
 build-wasm.sh  ->  deploy.sh  ->  new-principal.sh (agent, approver)  [-> principal-env.sh]  ->  request-action.sh / approve.sh / reject.sh
@@ -12,7 +11,19 @@ build-wasm.sh  ->  deploy.sh  ->  new-principal.sh (agent, approver)  [-> princi
                     revoke-key.sh, delete-account.sh, lock-contract.sh
 ```
 
-## Current deployment
+## Testnet demonstration
+
+`approvals.difflabai.testnet` is a testnet demonstration, owned by
+`difflabai.testnet`. It is not a locked reference: the contract account
+still has a full-access key, so it can be redeployed. A build of current
+main will not match the `code_hash` below. Point the scripts at it with:
+
+```bash
+NEAR_ACCOUNT_ID=difflabai.testnet
+APPROVAL_CONTRACT_ID=approvals.difflabai.testnet
+```
+
+`APPROVAL_CONTRACT_ID` can be omitted when it is `approvals.<NEAR_ACCOUNT_ID>`.
 
 | | |
 |---|---|
@@ -58,7 +69,7 @@ different file.
 |---|---|---|
 | `NEAR_NETWORK` | `testnet` | `testnet`, `mainnet` or `sandbox`. Mainnet also needs `NEAR_ALLOW_MAINNET=1` in the environment (it is ignored in a file). Every script checks that the node's `chain_id` matches. |
 | `NEAR_RPC_URL` | per network | testnet `https://test.rpc.fastnear.com` (`https://rpc.testnet.near.org` also works but is deprecated and rate-limits quickly), mainnet `https://rpc.mainnet.near.org`, sandbox `http://127.0.0.1:3030`. Plain `http://` only to localhost unless `NEAR_ALLOW_INSECURE_RPC=1` is set in the environment. The scripts trust the RPC for chain state, so use one you trust. |
-| `NEAR_ACCOUNT_ID` | `difflabai.testnet` | Pays for everything, creates subaccounts, owns the contract. |
+| `NEAR_ACCOUNT_ID` | (required) | Pays for everything, creates subaccounts, owns the contract. Set it in the environment or `.env`. The testnet demonstration uses `difflabai.testnet`. |
 | `NEAR_PRIVATE_KEY` | (none) | `ed25519:...` full-access key of `NEAR_ACCOUNT_ID`. Needed by every script that signs; `status.sh` and `view.sh` run without it. |
 | `NEAR_PUBLIC_KEY` | (none) | Optional cross-check: must match the key derived from `NEAR_PRIVATE_KEY`. |
 | `APPROVAL_CONTRACT_ID` | `approvals.<NEAR_ACCOUNT_ID>` | The contract account. |
@@ -183,7 +194,7 @@ to fund it. Then:
     start over, deploy a new instance with its own credentials dir (keys
     are scoped to one contract, so the first instance's key files stay
     where they are), e.g.
-    `APPROVAL_CONTRACT_ID=approvals2.difflabai.testnet NEAR_CREDENTIALS_DIR=.near-credentials-approvals2 scripts/near/deploy.sh`,
+    `APPROVAL_CONTRACT_ID=approvals2.example.testnet NEAR_CREDENTIALS_DIR=.near-credentials-approvals2 scripts/near/deploy.sh`,
     and run `new-principal.sh` etc. with the same two settings.
 - **Locked contract** (no access keys, see `lock-contract.sh`): same code
   is reported as deployed; anything else is refused.
@@ -202,15 +213,19 @@ gitignored.
 
 ### First deploy to testnet
 
+Set `NEAR_ACCOUNT_ID` and `NEAR_PRIVATE_KEY` in `.env` first. The commands
+below are what deployed the testnet demonstration (`difflabai.testnet` /
+`approvals.difflabai.testnet`) on 2026-10-19.
+
 ```bash
-install -m 600 .env.example .env      # then set NEAR_PRIVATE_KEY (full-access key of difflabai.testnet)
+install -m 600 .env.example .env      # then set NEAR_ACCOUNT_ID and NEAR_PRIVATE_KEY
 scripts/near/status.sh                # parent balance, what the first deploy needs; works before anything exists
 scripts/near/faucet-fund.sh           # if it is short: +10 testnet NEAR from the faucet
 scripts/near/build-wasm.sh            # CI's reproducible wasm for the latest contract commit
 scripts/near/deploy.sh --dry-run      # key check, the plan and what it costs; sends nothing
-scripts/near/deploy.sh                # create approvals.difflabai.testnet, deploy, init
+scripts/near/deploy.sh                # create the contract account, deploy, init
 scripts/near/status.sh                # code_hash matches, owner set
-git add scripts/near/deployments/testnet && git commit -m "Record approvals.difflabai.testnet deployment"
+git add scripts/near/deployments/testnet && git commit -m "Record the testnet deployment"
 scripts/near/new-principal.sh agent1 agent
 scripts/near/new-principal.sh reviewer1 approver
 scripts/near/smoke-test.sh            # end to end on testnet; --cleanup removes the smoke accounts
@@ -230,7 +245,7 @@ zero-balance account); `smoke-test.sh` passed on testnet afterwards.
 ### Adding principals and using them
 
 ```bash
-scripts/near/new-principal.sh agent1 agent          # agent1.difflabai.testnet
+scripts/near/new-principal.sh agent1 agent          # agent1.<NEAR_ACCOUNT_ID>
 scripts/near/new-principal.sh reviewer1 approver    # a different account (separation of duties)
 id=$(scripts/near/request-action.sh agent1 "deploy release 1.4.2 to prod")
 scripts/near/view.sh get_request "{\"request_id\": $id}"
@@ -295,7 +310,7 @@ approval about 0.002 NEAR, for good. When it runs out, `request_action` and
 `approve` fail and the scripts print the top-up command. Top up with:
 
 ```bash
-scripts/near/transfer.sh approvals.difflabai.testnet 2 --yes
+scripts/near/transfer.sh "$APPROVAL_CONTRACT_ID" 2 --yes
 ```
 
 For monitoring, `scripts/near/status.sh --min-available 1` exits 3 when the
@@ -334,8 +349,10 @@ verify it as well as you can, and add its hash to `sandbox.sh` or pass
 
 ### Verifying the deployed code
 
-A NEAR `code_hash` is the base58 SHA-256 of the wasm. To check that
-`approvals.difflabai.testnet` runs this repo's code at a given commit:
+A NEAR `code_hash` is the base58 SHA-256 of the wasm. To check that the
+testnet demonstration (`approvals.difflabai.testnet`) runs this repo's code
+at a given commit, set `NEAR_ACCOUNT_ID=difflabai.testnet` first so
+`status.sh` reads that account:
 
 ```bash
 scripts/near/build-wasm.sh --local <commit>   # your own reproducible build

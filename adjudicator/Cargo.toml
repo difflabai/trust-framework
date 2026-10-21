@@ -3,6 +3,9 @@ name = "adjudicator"
 version = "0.1.0"
 edition = "2021"
 description = "A behavior adjudicator for AI agent systems"
+license = "MIT"
+repository = "https://github.com/difflabai/trust-framework"
+publish = false
 
 [dependencies]
 regex = "1"

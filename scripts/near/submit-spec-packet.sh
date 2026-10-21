@@ -3,7 +3,7 @@
 #                                           [--key-file PATH] [--setup-agent] [--dry-run] [--yes]
 #
 # File each item of a spec review packet as one request on the approval
-# contract (default approvals.difflabai.testnet), for a reviewer to approve or
+# contract (APPROVAL_CONTRACT_ID, from NEAR_ACCOUNT_ID), for a reviewer to approve or
 # reject in ui/spec-approvals/. Each action names the packet, the item and the
 # SHA-256 of the item's canonical text (scripts/near/spec_packet.py), so the
 # approval on chain binds to exactly what the reviewer read.

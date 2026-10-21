@@ -28,8 +28,8 @@ env:
   CARGO_NEAR_VERSION: "0.22.0"
   # sha256 of cargo-near-x86_64-unknown-linux-gnu.tar.gz for that release.
   CARGO_NEAR_SHA256: "9429064e30a427e96523f539cb255f3688d2345e5000d7d4e4873a8247247d1a"
-  # sha256 of cargo-near-aarch64-apple-darwin.tar.gz, for the self-hosted
-  # macOS runner.
+  # sha256 of cargo-near-aarch64-apple-darwin.tar.gz, for macOS runners
+  # in the CI pool.
   CARGO_NEAR_SHA256_MACOS_ARM64: "55bd219c28c6996512a7c3836519f160b27b73a723f087634bf16f8a0bd48c8a"
 
 defaults:
@@ -39,20 +39,15 @@ defaults:
 jobs:
   check:
     name: fmt, clippy, unit tests
-    # GitHub-hosted runners are blocked by the org's billing limit, so
-    # vars.CI_RUNNER points every job at the org's self-hosted macOS
-    # (Apple Silicon) runner. Unset, this falls back to GitHub-hosted Linux.
+    # Jobs run on the CI pool. vars.CI_RUNNER selects the pool;
+    # unset, this falls back to GitHub-hosted Linux.
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    # The self-hosted runner is a single machine shared by every repo in the
-    # org; cap each job so a hang doesn't hold it for the 6-hour default.
+    # Cap each job so a hang doesn't hold a CI pool runner.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      # Each self-hosted runner instance keeps one RUSTUP_HOME across jobs
-      # and repos, and rust-toolchain runs `rustup default`. Other repos'
-      # unpinned cargo builds use that default, and an always() restore
-      # step never runs if the runner dies or the Mac sleeps mid-job. So on
-      # self-hosted, install the pin and select it for this job only.
+      # On a CI pool runner, install the pin and select it for this job only,
+      # so the job does not change the runner's default toolchain.
       - name: Install the pinned Rust toolchain for this job
         if: runner.environment == 'self-hosted'
         run: |
@@ -63,11 +58,9 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
-      # rust-cache's post step prunes CARGO_HOME down to this workspace's
-      # dependencies, including deleting cargo-installed binaries that were
-      # already there. A self-hosted runner's CARGO_HOME is shared with other
-      # jobs and repos (and already persists), so only use it on
-      # GitHub-hosted runners.
+      # rust-cache's post step prunes CARGO_HOME. A CI pool runner's
+      # CARGO_HOME is shared and already persists, so only use rust-cache
+      # on GitHub-hosted runners.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         if: runner.environment == 'github-hosted'
         with:
@@ -81,8 +74,8 @@ jobs:
   wasm:
     name: reproducible wasm
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    # Longer than the others: on the Mac the amd64 build image runs under
-    # emulation.
+    # Longer than the others: the CI pool may run the amd64 build image
+    # under emulation.
     timeout-minutes: 45
     steps:
       # Build the PR head commit itself (not the merge commit), so the
@@ -111,35 +104,31 @@ jobs:
             echo "${sha256}  ${tarball}" | sha256sum --check --strict
           fi
           tar xzf "$tarball"
-          # Not $HOME/.cargo/bin: on a self-hosted runner that is shared by
-          # every job and repo and outlives this one.
+          # Not $HOME/.cargo/bin: on a CI pool runner that directory is shared
+          # and outlives this job.
           bin="$RUNNER_TEMP/cargo-near-bin"
           mkdir -p "$bin"
           install -m 0755 "cargo-near-${target}/cargo-near" "$bin/cargo-near"
           echo "$bin" >> "$GITHUB_PATH"
           PATH="$bin:$PATH" cargo near --version
-      # The reproducible build below needs a Docker daemon that can bind-mount
-      # RUNNER_TEMP. Hosted runners always have one; on a self-hosted runner it
-      # is host setup that lives outside this repo (on the macOS runner: Docker
-      # Desktop running, with the runner's directory under a shared path in
-      # Settings > Resources > File sharing; /Users is shared by default). Fail
-      # here with that recovery step rather than deep inside cargo-near.
+      # The reproducible build needs a Docker daemon that can bind-mount
+      # RUNNER_TEMP. GitHub-hosted runners have one. On a CI pool runner it
+      # is pool setup that lives outside this repo. Fail here rather than
+      # deep inside cargo-near.
       - name: Check the runner's Docker daemon
         if: runner.environment == 'self-hosted'
         run: |
           if ! docker info >/dev/null 2>&1; then
-            echo "::error::No reachable Docker daemon on self-hosted runner '${RUNNER_NAME}'. Start Docker Desktop (or the runner's Docker service) and re-run; the reproducible wasm build runs in a container."
+            echo "::error::No reachable Docker daemon on CI pool runner '${RUNNER_NAME}'. Start the pool's Docker service and re-run; the reproducible wasm build runs in a container."
             exit 1
           fi
           if ! docker run --rm -v "$RUNNER_TEMP:/probe:ro" alpine:3 test -d /probe >/dev/null 2>&1; then
-            echo "::error::Docker on '${RUNNER_NAME}' cannot bind-mount ${RUNNER_TEMP}. Add its parent directory to Docker Desktop's Settings > Resources > File sharing and re-run."
+            echo "::error::Docker on '${RUNNER_NAME}' cannot bind-mount ${RUNNER_TEMP}. Share that directory with the pool's Docker daemon and re-run."
             exit 1
           fi
-      # Up to 6 runner instances share this Mac's Docker Desktop VM. A run
-      # whose runner died (killed, slept, Docker restarted) skips the
-      # always() cleanup below, and its orphaned emulated build would keep
-      # eating the shared VM's CPU/RAM; only this instance can reclaim it, so
-      # do that before building. Same instance-scoped RUNNER_TEMP filter.
+      # CI pool runners share a Docker daemon. A run whose runner died skips
+      # the always() cleanup below. Reclaim this job's orphaned build
+      # containers before building. Same instance-scoped RUNNER_TEMP filter.
       - name: Remove orphaned cargo-near build containers
         if: runner.environment == 'self-hosted'
         working-directory: ${{ runner.temp }}
@@ -154,23 +143,20 @@ jobs:
         working-directory: contracts/approval/contract
         run: |
           if [ "$RUNNER_OS" = macOS ]; then
-            # Docker Desktop on Apple Silicon: the pinned image is
-            # linux/amd64 only, so it runs under emulation (same image
-            # digest, same toolchain, same wasm).
+            # On macOS the pinned image is linux/amd64 only, so it runs under
+            # emulation (same image digest, same toolchain, same wasm).
             export DOCKER_DEFAULT_PLATFORM=linux/amd64
           fi
           if [ "${RUNNER_ENVIRONMENT:-}" = self-hosted ]; then
             # cargo-near bind-mounts a temporary clone of the repo into the
             # container; keep that clone under RUNNER_TEMP, which the runner
-            # cleans, Docker Desktop shares, and the cleanup step below
-            # matches on.
+            # cleans and the cleanup step below matches on.
             export TMPDIR="$RUNNER_TEMP"
           fi
           cargo near build reproducible-wasm
       # A cancelled run (concurrency cancels superseded pushes) can leave
-      # cargo-near's build container running on a persistent self-hosted
-      # runner. Remove only containers whose bind mount is this job's
-      # RUNNER_TEMP.
+      # cargo-near's build container running on a CI pool runner. Remove
+      # only containers whose bind mount is this job's RUNNER_TEMP.
       - name: Remove leftover cargo-near build containers
         if: always() && runner.environment == 'self-hosted'
         working-directory: ${{ runner.temp }}
@@ -204,11 +190,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      # Each self-hosted runner instance keeps one RUSTUP_HOME across jobs
-      # and repos, and rust-toolchain runs `rustup default`. Other repos'
-      # unpinned cargo builds use that default, and an always() restore
-      # step never runs if the runner dies or the Mac sleeps mid-job. So on
-      # self-hosted, install the pin and select it for this job only.
+      # On a CI pool runner, install the pin and select it for this job only,
+      # so the job does not change the runner's default toolchain.
       - name: Install the pinned Rust toolchain for this job
         if: runner.environment == 'self-hosted'
         run: |
@@ -218,11 +201,9 @@ jobs:
         if: runner.environment == 'github-hosted'
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-      # rust-cache's post step prunes CARGO_HOME down to this workspace's
-      # dependencies, including deleting cargo-installed binaries that were
-      # already there. A self-hosted runner's CARGO_HOME is shared with other
-      # jobs and repos (and already persists), so only use it on
-      # GitHub-hosted runners.
+      # rust-cache's post step prunes CARGO_HOME. A CI pool runner's
+      # CARGO_HOME is shared and already persists, so only use rust-cache
+      # on GitHub-hosted runners.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         if: runner.environment == 'github-hosted'
         with:
