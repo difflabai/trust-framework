@@ -5,14 +5,16 @@
 #
 # Approve request REQUEST_ID, signed with the approver's function-call key:
 # by default the one new-principal.sh stored in
-# <NEAR_CREDENTIALS_DIR>/<network>/<account>.approver.json. ACTION must
+# <NEAR_CREDENTIALS_DIR>/<network>/<account>.approver.json, or, if none is
+# stored, APPROVAL_APPROVER_* in ENV_FILE (principal-env.sh). ACTION must
 # restate the requested action exactly: the contract refuses the approval
 # otherwise, so the approver's own signed transaction names what was
 # reviewed. Prints the approval proof JSON on stdout.
 #
-# Before sending, checks that the request exists, is pending, has exactly
-# this action and was not made by the approver's own account (separation of
-# duties), so a doomed transaction isn't sent.
+# Before sending, checks that the key may call approve and is registered,
+# and that the request exists, is pending, has exactly this action and was
+# not made by the approver's own account (separation of duties), so a
+# doomed transaction isn't sent.
 #
 # Options:
 #   --action-file PATH     read the action from a file ('-': stdin), byte for
@@ -82,6 +84,7 @@ near_require_contract
 IDARGS=$(nu json-build request_id:="$ID")
 
 if [ "$SKIP" = 0 ]; then
+  require_key_can_call "$ACCT" "$KEYFILE" approve
   REQ=$(near_view get_request "$IDARGS") || die "get_request failed"
   [ "$REQ" != null ] || die "request $ID does not exist (get_request_count is $(near_view get_request_count))"
   STATUS=$(jget "$REQ" status)

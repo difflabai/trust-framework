@@ -4,8 +4,10 @@
 # Read-only overview of the configured network: the parent account
 # (NEAR_ACCOUNT_ID), the contract account (APPROVAL_CONTRACT_ID), whether
 # its code_hash matches the local wasm and the deployment record, the
-# contract's owner and counters, and the principal keys stored under
-# NEAR_CREDENTIALS_DIR. Before the first deploy it says how much the parent
+# contract's owner and counters, the principal keys stored under
+# NEAR_CREDENTIALS_DIR, and the principals in ENV_FILE (APPROVAL_AGENT_* /
+# APPROVAL_APPROVER_*: key scope and registration; a broken one counts for
+# --check). Before the first deploy it says how much the parent
 # needs. Sends nothing. Works without NEAR_PRIVATE_KEY (the key checks are
 # then skipped).
 #
@@ -263,6 +265,84 @@ if [ "$DEPLOYED" = 1 ]; then
       out "  $acct ($role) $pk: $reg"
     done
   fi
+
+  # Principals whose keys live in ENV_FILE (principal-env.sh).
+  found=0
+  for role in agent approver; do
+    pfx=$(principal_env_prefix "$role")
+    av=${pfx}_ACCOUNT_ID pv=${pfx}_PUBLIC_KEY kv=${pfx}_PRIVATE_KEY
+    acct=${!av:-}
+    [ -n "$acct" ] || continue
+    if [ "$found" = 0 ]; then
+      out ""
+      out "Principals in $ENV_FILE"
+      found=1
+    fi
+    pk=${!pv:-} dpk="" note="" have_kv=0
+    # Decide everything about the secret while xtrace is off.
+    { xtrace_off; } 2>/dev/null
+    if [ -n "${!kv:-}" ]; then
+      have_kv=1
+      dpk=$(printf '%s' "${!kv}" | nu pubkey 2>/dev/null || true)
+    fi
+    xtrace_on
+    if [ "$have_kv" = 0 ]; then
+      # Fine while a stored key file signs for this principal; otherwise
+      # the scripts can't act as it.
+      if [ -f "$(principal_keyfile "$acct" "$role")" ]; then
+        note=" (no $kv; the stored key file signs)"
+      else
+        note=" (no $kv and no stored key file: scripts can't sign as it)"
+        problem "$kv is missing for the $role principal $acct in $ENV_FILE (and no key file is stored)"
+      fi
+    elif [ -z "$dpk" ]; then
+      note=" ($kv is not a valid ed25519 secret key)"
+      problem "$kv in $ENV_FILE is not a valid ed25519 secret key"
+    elif [ -n "$pk" ] && [ "$pk" != "$dpk" ]; then
+      note=" ($pv says $pk, but $kv is this key; the signing scripts refuse it until $pv is fixed)"
+      problem "$pv does not match $kv in $ENV_FILE"
+      pk=$dpk
+    fi
+    pk=${pk:-$dpk}
+    if [ -z "$pk" ]; then
+      out "  $role $acct: no usable $pv / $kv$note"
+      continue
+    fi
+    k=$(nur access-key "$acct" "$pk" 2>/dev/null || echo '{}')
+    case $(jget "$k" permission) in
+      FunctionCall)
+        km=$(key_methods "$k")
+        scope="function-call key [$(methods_label "$km")] on $(jget "$k" receiver_id)"
+        if [ "$(jget "$k" receiver_id)" != "$APPROVAL_CONTRACT_ID" ] || ! methods_subset "$role" "$km"; then
+          scope="$scope (NOT scoped to $role methods of $APPROVAL_CONTRACT_ID)"
+          problem "the $role key of $acct in $ENV_FILE is not scoped to $role methods of $APPROVAL_CONTRACT_ID"
+        fi
+        ;;
+      FullAccess)
+        scope="FULL-ACCESS key"
+        problem "the $role key of $acct in $ENV_FILE is a full-access key"
+        ;;
+      *)
+        scope="not an access key of $acct"
+        problem "the $role key of $acct in $ENV_FILE is not an access key of $acct"
+        ;;
+    esac
+    p=$(near_view get_principal "$(nu json-build public_key="$pk")" 2>/dev/null || echo error)
+    case $p in
+      null)
+        reg="NOT registered (revoked or never added; run principal-env.sh $acct $role --replace after new-principal.sh)"
+        problem "the $role key of $acct in $ENV_FILE is not registered"
+        ;;
+      error) reg="get_principal failed" ;;
+      *)
+        reg="registered as $(jget "$p" role) of $(jget "$p" account_id) (registration $(jget "$p" registration_id), pending $(jget "$p" pending))"
+        if [ "$(jget "$p" account_id)" != "$acct" ] || [ "$(jget "$p" role)" != "$role" ]; then
+          problem "the $role key in $ENV_FILE is registered as $(jget "$p" role) of $(jget "$p" account_id), not $role of $acct"
+        fi
+        ;;
+    esac
+    out "  $role $acct $pk: $scope; $reg$note"
+  done
 fi
 
 if [ -n "$PROBLEMS" ]; then
