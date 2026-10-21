@@ -21,9 +21,11 @@ A NEAR contract that records an agent's request to act and an approver's decisio
 
 The testnet demonstration is [`approvals.difflabai.testnet`](https://testnet.nearblocks.io/address/approvals.difflabai.testnet), owned by `difflabai.testnet`. It can still be redeployed. Set `NEAR_ACCOUNT_ID` to point the scripts at it, or at your own account. `APPROVAL_CONTRACT_ID` defaults to `approvals.<NEAR_ACCOUNT_ID>`.
 
+CI (`.github/workflows/approval-contract.yml`) runs fmt, clippy, unit tests, the reproducible wasm build, and sandbox tests for this contract.
+
 ## In progress
 
-No release. No CI.
+No release. No CI for these.
 
 - **Guards** (`guards/`): input and output guard pipeline, adapters, `trust-proxy`, `trust-server`. The Prolog evaluator is a stub.
 - **Adjudicator** (`adjudicator/`): policy scoring of proposed agent output.
