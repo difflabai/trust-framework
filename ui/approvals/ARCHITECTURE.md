@@ -7,7 +7,10 @@ submits is the one the approver's wallet signs.
 
 ## Shape
 
-`index.html` is the application. No build, no framework, no backend. Views
+`index.html` is the application. Contract reads, the wallet connector,
+signing and the text-safety helpers live in `../shared/approval-kit.js`,
+and the base styles in `../shared/base.css`. Both are shared with
+`../spec-approvals/`. No build, no framework, no backend. Views
 are `fetch` calls to a NEAR JSON-RPC at `finality: final`. Signing uses
 [NEAR Connect](https://docs.near.org/tools/near-connect)
 (`@hot-labs/near-connect` 0.11.4), loaded from a pinned URL with
@@ -111,7 +114,7 @@ match on refresh is not a lock. `lock-contract.sh` removes those keys.
 | `q` | search string |
 | `keys` | `all` (also `live`, `revoked`) on the approval log |
 
-Run it with `python3 -m http.server` from this directory. Wallet extensions
+Run it with `python3 -m http.server` from `ui/` (the page loads `../shared/`). Wallet extensions
 and the clipboard need HTTP on localhost, not `file://`.
 
 ## Roadmap: hosted on-chain

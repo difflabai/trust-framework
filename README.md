@@ -17,6 +17,7 @@ A NEAR contract that records an agent's request to act and an approver's decisio
 - Contract: [`contracts/approval`](contracts/approval/README.md)
 - Operations: [`scripts/near`](scripts/near/README.md)
 - Approver page: [`ui/approvals`](ui/approvals/README.md)
+- Spec review page: [`ui/spec-approvals`](ui/spec-approvals/README.md)
 
 The testnet demonstration is [`approvals.difflabai.testnet`](https://testnet.nearblocks.io/address/approvals.difflabai.testnet), owned by `difflabai.testnet`. It can still be redeployed. Set `NEAR_ACCOUNT_ID` to point the scripts at it, or at your own account. `APPROVAL_CONTRACT_ID` defaults to `approvals.<NEAR_ACCOUNT_ID>`.
 
