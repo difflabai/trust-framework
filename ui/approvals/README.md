@@ -7,18 +7,20 @@ A single HTML file for reviewing pending requests and signing `approve` or
 ## Run
 
 ```bash
-cd ui/approvals && python3 -m http.server 8080
+cd ui && python3 -m http.server 8080
 ```
 
-Open <http://127.0.0.1:8080>. Use HTTP on localhost, not `file://`: wallet
-extensions and the clipboard do not reliably work from a file URL. No
-install and no build.
+Open <http://127.0.0.1:8080/approvals/>. Serve `ui/`, not this directory:
+the page loads `../shared/` (code shared with
+[`../spec-approvals/`](../spec-approvals/README.md)). Use HTTP on localhost,
+not `file://`: wallet extensions and the clipboard do not reliably work from
+a file URL. No install and no build.
 
 The default bookmark is the testnet deployment,
 `approvals.difflabai.testnet`. Override it in the query string:
 
 ```text
-http://127.0.0.1:8080/?contract=approvals.difflabai.testnet&network=testnet
+http://127.0.0.1:8080/approvals/?contract=approvals.difflabai.testnet&network=testnet
 ```
 
 | Param | Default |

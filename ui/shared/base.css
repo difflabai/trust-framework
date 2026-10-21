@@ -1,0 +1,113 @@
+/* Shared by ui/approvals and ui/spec-approvals. System colours and fonts, light and dark. */
+:root {
+  color-scheme: light dark;
+  --text: CanvasText;
+  --bg: Canvas;
+  --muted: GrayText;
+  --line: color-mix(in srgb, CanvasText 22%, Canvas);
+  --soft: color-mix(in srgb, CanvasText 6%, Canvas);
+  --warn: color-mix(in srgb, #b45309 82%, CanvasText);
+  --bad: color-mix(in srgb, #b91c1c 78%, CanvasText);
+  --ok: color-mix(in srgb, #15803d 72%, CanvasText);
+}
+* { box-sizing: border-box; }
+body {
+  max-width: 42rem;
+  margin: 2rem auto 4rem;
+  padding: 0 1.25rem;
+  background: var(--bg);
+  color: var(--text);
+  font: 1.05rem/1.5 system-ui, sans-serif;
+}
+h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 0.25rem; }
+h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
+p, dl, ul { margin: 0.75rem 0; }
+a { color: LinkText; }
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 2px solid LinkText;
+  outline-offset: 2px;
+}
+header { margin-bottom: 1.75rem; }
+.lede { color: var(--muted); margin-top: 0; }
+.meta {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.2rem 0.75rem;
+  margin: 1rem 0;
+  font-size: 0.95rem;
+}
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; overflow-wrap: anywhere; }
+.mono, pre, code, .key {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+}
+.ok { color: var(--ok); }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+button, .settings button, select, input {
+  font: inherit;
+  color: ButtonText;
+  background: ButtonFace;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  padding: 0.4rem 0.75rem;
+  min-height: 2.5rem;
+}
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+button.primary { font-weight: 650; }
+button.danger { color: var(--bad); }
+.status {
+  padding: 0.6rem 0.75rem;
+  background: var(--soft);
+  border-left: 3px solid var(--line);
+}
+.status.warn { border-left-color: var(--warn); }
+.status.bad { border-left-color: var(--bad); }
+article {
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  padding: 0.9rem 1rem 1rem;
+  margin: 0 0 0.85rem;
+}
+article header { margin: 0 0 0.4rem; }
+article h3 { font-size: 1rem; margin: 0; }
+.when, .agent { color: var(--muted); font-size: 0.95rem; }
+pre.action {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+  direction: ltr;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: var(--soft);
+  border: 1px solid var(--line);
+}
+pre.hex {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 12rem;
+  overflow: auto;
+  margin: 0.4rem 0 0;
+}
+details { margin: 0.6rem 0; }
+summary { cursor: pointer; }
+.empty { color: var(--muted); }
+dialog {
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  max-width: 36rem;
+  width: calc(100% - 2rem);
+  padding: 1.1rem 1.2rem 1.2rem;
+}
+dialog::backdrop { background: color-mix(in srgb, CanvasText 35%, transparent); }
+dialog h2 { margin-top: 0; }
+dialog h3 { font-size: 1rem; margin: 0.9rem 0 0.25rem; }
+label { display: block; margin: 0.7rem 0 0.2rem; }
+input, select { width: 100%; }
+footer { margin-top: 2.5rem; color: var(--muted); font-size: 0.95rem; }
+footer .settings { color: var(--text); }
