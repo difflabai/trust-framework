@@ -213,6 +213,14 @@ jobs:
         with:
           name: approval-contract-wasm
           path: contracts/approval/artifact
+      - name: Hash-checked near-sandbox
+        working-directory: ${{ github.workspace }}
+        run: |
+          # near-workspaces downloads in its build script, before any test
+          # runs, and reuses a cache that has no hash. Point it at the
+          # sha256-checked binary and drop a copy fetched earlier.
+          bin=$(scripts/near/sandbox.sh bin)
+          echo "NEAR_SANDBOX_BIN_PATH=$bin" >> "$GITHUB_ENV"
       - name: Run sandbox tests against the reproducible wasm
         env:
           APPROVAL_WASM: ${{ github.workspace }}/contracts/approval/artifact/approval_contract.wasm
