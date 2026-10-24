@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: scripts/near/sandbox.sh start|stop|status|env|reset
+# Usage: scripts/near/sandbox.sh start|stop|status|env|reset|bin
 #
 # Run a local near-sandbox node, so every script here can be exercised
 # end to end without touching testnet. Uses the near-sandbox version the
@@ -7,6 +7,10 @@
 # crate 0.3.16 -> near-sandbox 2.13.4), checked against a sha256 recorded
 # here (trust on first use: upstream publishes none, see pinned_sha256).
 #
+#   bin     print a sha256-checked near-sandbox path, and drop any copy the
+#           near-sandbox crate cached before the eMudhra distrust. Export it
+#           as NEAR_SANDBOX_BIN_PATH before `cargo test` so that crate does
+#           not download the tarball itself (it never checks a hash).
 #   start   download the binary (cached in $SANDBOX_DIR/bin), init a node home
 #           on first start, run the node in the background and write
 #           $SANDBOX_DIR/.env (NEAR_NETWORK=sandbox, NEAR_ACCOUNT_ID=test.near
@@ -48,8 +52,8 @@ case "${1:-}" in
     print_usage
     exit 0
     ;;
-  start | stop | status | env | reset) CMD=$1 ;;
-  '') usage_error "missing command (start|stop|status|env|reset)" ;;
+  start | stop | status | env | reset | bin) CMD=$1 ;;
+  '') usage_error "missing command (start|stop|status|env|reset|bin)" ;;
   *) usage_error "unknown command '$1'" ;;
 esac
 shift
@@ -282,6 +286,39 @@ cmd_reset() {
   cmd_stop
   rm -rf "$HOME_DIR" "$SANDBOX_DIR/credentials" "$SANDBOX_DIR/deployments" "$ENV_OUT" "$LOG_FILE" "$PORT_FILE"
   ok "sandbox state removed (binary cache kept in $SANDBOX_DIR/bin)"
+}
+
+# near-sandbox 0.3.16 reuses a downloaded binary and does not hash it.
+# ~/.near is the global_install cache. OUT_DIR/.near is the default. A binary
+# fetched while the compromised eMudhra intermediates were still trusted must
+# not survive the rustls-webpki bump. The stamp is the distrust generation:
+# change it if that crate has to move again.
+drop_ureq_cache() {
+  local mark="rustls-webpki-0.103.16" cache stamp target
+  cache="${HOME:-}/.near/near-sandbox-$SANDBOX_VERSION"
+  if [ -n "${HOME:-}" ]; then
+    stamp="$cache/.emudhra-distrust"
+    if [ ! -f "$stamp" ] || [ "$(cat "$stamp" 2>/dev/null || true)" != "$mark" ]; then
+      rm -rf "$cache"
+      mkdir -p "$cache"
+      printf '%s\n' "$mark" >"$stamp"
+    fi
+  fi
+  target="$REPO_ROOT/contracts/approval/target"
+  if [ -d "$target" ]; then
+    stamp="$target/.emudhra-distrust"
+    if [ ! -f "$stamp" ] || [ "$(cat "$stamp" 2>/dev/null || true)" != "$mark" ]; then
+      find "$target" -path "*/near-sandbox-$SANDBOX_VERSION/near-sandbox" -delete 2>/dev/null || true
+      find "$target" -path "*/near-sandbox-$SANDBOX_VERSION/near-sandbox.tmp" -delete 2>/dev/null || true
+      printf '%s\n' "$mark" >"$stamp"
+    fi
+  fi
+}
+
+cmd_bin() {
+  ensure_binary
+  drop_ureq_cache
+  printf '%s\n' "$SANDBOX_BIN"
 }
 
 near_tmp_init

@@ -252,8 +252,11 @@ cargo test -p approval-contract
 cd contract && cargo near build non-reproducible-wasm   # quick, local toolchain
 cd contract && cargo near build reproducible-wasm       # pinned Docker image, needs a clean, committed tree
 
-# Sandbox tests: run the wasm above in a local NEAR sandbox (downloaded on
-# first run). Set APPROVAL_WASM to test a different build.
+# Sandbox tests. `sandbox.sh bin` prints a sha256-checked near-sandbox and
+# drops a copy the crate cached before the eMudhra distrust. near-workspaces
+# downloads in its build script and does not hash the tarball, so the
+# variable has to be set before cargo runs.
+export NEAR_SANDBOX_BIN_PATH="$(../../scripts/near/sandbox.sh bin)"
 cargo test -p approval-sandbox-tests
 ```
 

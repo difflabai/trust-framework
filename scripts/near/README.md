@@ -139,7 +139,7 @@ seconds).
 | `faucet-fund.sh [<receiver>] [--rounds N]` | Testnet only: tops up an existing account (default `NEAR_ACCOUNT_ID`) with 10 NEAR per round from the testnet faucet, which only funds new accounts: each round has the faucet create a throwaway `tf-faucet-….testnet` account and then deletes it with the receiver as beneficiary. Needs no `NEAR_PRIVATE_KEY`. If a deletion fails, the throwaway key is kept and `--recover KEYFILE` finishes the round. Uses `NEAR_FAUCET_URL` (default `https://helper.testnet.near.org/account`; near-cli's own default host fails TLS). |
 | `delete-account.sh <account> --yes` | Deletes a subaccount of `NEAR_ACCOUNT_ID` (balance goes back to it) and its stored key files. Refuses anything else, and the contract account unless `--delete-contract` is also given. |
 | `lock-contract.sh --yes [--dry-run]` | Deletes every access key of the contract account once the deployment is final (checks code hash against the record and the owner first). Irreversible: no more `--upgrade`/`--fresh`/deletion; top-ups and contract calls keep working. |
-| `sandbox.sh start\|stop\|status\|env\|reset` | Local near-sandbox node for trying all of the above without testnet. |
+| `sandbox.sh start\|stop\|status\|env\|reset\|bin` | Local near-sandbox node for trying all of the above without testnet. `bin` prints a sha256-checked binary for `NEAR_SANDBOX_BIN_PATH`. |
 
 `<agent>`, `<approver>` and `<name>` accept a short name (`alice` means
 `alice.<NEAR_ACCOUNT_ID>`) or a full account id. The scripts also work
