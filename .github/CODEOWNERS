@@ -1,0 +1,3 @@
+# These owners cover every file, including workflows and CODEOWNERS itself.
+# An approval from any one owner satisfies the code-owner review requirement.
+* @martyn @mikkel @gabehamilton @leegonzales
