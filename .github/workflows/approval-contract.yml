@@ -44,8 +44,7 @@ jobs:
     # Claude Code cloud-session runs (a claude/* branch, a session link in
     # the PR body, an Anthropic-committed push head) go to GitHub-hosted
     # instead, because the pool refuses them. All three jobs use the same
-    # expression, copied verbatim from difflabai/service-mesh#416. Change
-    # it there and keep every copy identical.
+    # routing expression; keep every copy identical.
     runs-on: ${{ (startsWith(github.head_ref || github.ref_name, 'dependabot/') || github.actor == 'dependabot[bot]' || github.triggering_actor == 'dependabot[bot]' || startsWith(github.head_ref || github.ref_name, 'claude/') || contains(github.event.pull_request.body, 'claude.ai/code/session_') || github.event.head_commit.committer.email == 'noreply@anthropic.com') && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}
     # Cap each job so a hang doesn't hold a CI pool runner.
     timeout-minutes: 30
