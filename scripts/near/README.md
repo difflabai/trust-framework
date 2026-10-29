@@ -377,6 +377,23 @@ for commit `081a3a6`).
 | `.sandbox/`, `.cache/` | Local sandbox state and the cargo-near download cache (gitignored). |
 | `../../.near-credentials/` | Principal key files (gitignored). |
 
+## Credential output regression tests
+
+From the repository root, run:
+
+```bash
+python3 -m unittest discover -s scripts/near -p 'test_*.py' -v
+```
+
+The tests use a public RFC 8032 test vector to check that key-management
+commands print only the public key, never its private seed or full secret.
+They also check error output, CLI redaction, and mode 0600 on generated
+credential files. NEAR ed25519 secret keys encode `seed || public_key`;
+`parse_secret_key` exposes only the last 32 bytes as its public-key result.
+CodeQL can carry the input's sensitive-data label onto that public result,
+so its clear-text logging alerts on these public-key outputs are false
+positives. Secret values still belong only in private files.
+
 ## Limitations
 
 - Only ed25519 keys are generated and accepted for `NEAR_PRIVATE_KEY`.
