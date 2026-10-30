@@ -4,7 +4,7 @@
 #
 # File each item of a spec review packet as one request on the approval
 # contract (APPROVAL_CONTRACT_ID, from NEAR_ACCOUNT_ID), for a reviewer to approve or
-# reject in ui/spec-approvals/. Each action names the packet, the item and the
+# reject in ui/spec-approvals/ or ui/spec-approvals-full/. Each action names the packet, the item and the
 # SHA-256 of the item's canonical text (scripts/near/spec_packet.py), so the
 # approval on chain binds to exactly what the reviewer read.
 #
@@ -30,7 +30,7 @@
 # Prints one line per filed request, "<item><TAB><request_id>", on stdout.
 #
 # Options:
-#   --packet PATH   manifest (default ui/spec-approvals/packets/near-approval.json)
+#   --packet PATH   manifest (default ui/spec-approvals-full/packets/near-approval.json)
 #   --item ID       only this item (repeatable)
 #   --agent NAME    agent account (overrides APPROVAL_AGENT_ACCOUNT_ID)
 #   --key-file PATH sign with this key file
@@ -48,7 +48,7 @@ done
 # shellcheck source=SCRIPTDIR/lib.sh
 . "$(cd "$(dirname "$NEAR_SELF")" && pwd -P)/lib.sh"
 
-PACKET="$REPO_ROOT/ui/spec-approvals/packets/near-approval.json"
+PACKET="$REPO_ROOT/ui/spec-approvals-full/packets/near-approval.json"
 ITEMS=() AGENT_ARG="" KEY_FILE="" SETUP=0 DRY=0
 while [ $# -gt 0 ]; do
   case $1 in
@@ -152,4 +152,7 @@ for id in "${TODO[@]}"; do
   ok "item $id is request $rid"
   printf '%s\t%s\n' "$id" "$rid"
 done
-info "review them in ui/spec-approvals/?agent=$AGENT (see its README for how to run it)"
+# The page that loads this packet is the ui/* directory that contains it.
+packet_dir=$(cd "$(dirname "$PACKET")" && pwd -P)
+ui_name=$(basename "$(dirname "$packet_dir")")
+info "review them in ui/${ui_name}/?agent=$AGENT (see its README for how to run it)"

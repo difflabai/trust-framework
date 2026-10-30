@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <meta name="description" content="Review each item of a spec review packet and sign approve or reject on the NEAR approval contract.">
-  <title>Spec review</title>
+  <meta name="description" content="Review each approval requirement (R1–R6, D1–D17) and sign approve or reject on the NEAR approval contract.">
+  <title>Spec review · requirements</title>
   <link rel="stylesheet" href="../shared/base.css">
-  <link rel="stylesheet" href="spec.css">
+  <link rel="stylesheet" href="../shared/spec.css">
 </head>
-<body>
+<body data-packet="requirements" data-group="prefix" data-agent="agent1" data-packet-file="ui/spec-approvals/packets/requirements.json">
   <header>
-    <h1 id="packet-title">Spec review</h1>
+    <h1 id="packet-title">Approval requirements</h1>
     <p class="lede" id="packet-summary">Loading the packet…</p>
     <details id="packet-about">
       <summary>About this review</summary>
@@ -41,12 +41,13 @@
   <p id="banner" class="status" hidden></p>
 
   <div class="layout">
-    <nav class="items" aria-label="Packet items">
+    <nav class="items" aria-label="Requirements">
+      <input id="item-filter" type="search" placeholder="Filter requirements" aria-label="Filter requirements" autocomplete="off" spellcheck="false">
       <ol id="item-list"><li class="empty">Loading…</li></ol>
     </nav>
     <main>
       <section class="detail" id="detail" aria-live="polite">
-        <p class="empty">Pick an item.</p>
+        <p class="empty">Pick a requirement.</p>
       </section>
     </main>
   </div>
@@ -85,7 +86,7 @@
         <p class="row"><button type="submit">Use these</button></p>
       </form>
     </details>
-    <p>Items are filed with <code>scripts/near/submit-spec-packet.sh</code>. The owner registers your wallet's public key with <code>scripts/near/add-approver.sh</code>. See <a href="README.md">README.md</a>. The request list is at <a id="approvals-link" href="../approvals/">the approver page</a>.</p>
+    <p>Items are filed with <code>scripts/near/submit-spec-packet.sh --packet ui/spec-approvals/packets/requirements.json</code>. The owner registers your wallet's public key with <code>scripts/near/add-approver.sh</code>. See <a href="README.md">README.md</a>. The full packet review is at <a href="../spec-approvals-full/">spec-approvals-full</a>. The request list is at <a id="approvals-link" href="../approvals/">the approver page</a>.</p>
   </footer>
 
   <!-- NEAR Connect 0.11.4, commit de0f08af1e07c19fe5f80070383231d16ef924f6. SRI pins the bytes. Same pin as ../approvals/. -->
@@ -94,7 +95,7 @@
     integrity="sha384-6eNPlV+Bf92wTtH7ZfZE8sZPdohJ84VDXuVVegFjBvJsGWE6BXTT1he2jKjalJ9L"
     crossorigin="anonymous"></script>
   <script src="../shared/approval-kit.js"></script>
-  <script src="spec-kit.js"></script>
-  <script src="app.js"></script>
+  <script src="../shared/spec-kit.js"></script>
+  <script src="../shared/spec-app.js"></script>
 </body>
 </html>

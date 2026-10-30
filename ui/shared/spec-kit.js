@@ -2,7 +2,8 @@
  * Spec review packets in the browser: the canonical payload, its SHA-256 and
  * the request action for one packet item. Must agree byte for byte with
  * scripts/near/spec_packet.py, which files the requests; see that file's
- * docstring for the format. Defines window.SpecKit.
+ * docstring for the format. Shared by ui/spec-approvals and
+ * ui/spec-approvals-full. Defines window.SpecKit.
  */
 (function () {
   "use strict";

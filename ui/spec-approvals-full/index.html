@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Review each item of the full spec review packet and sign approve or reject on the NEAR approval contract.">
+  <title>Spec review (full)</title>
+  <link rel="stylesheet" href="../shared/base.css">
+  <link rel="stylesheet" href="../shared/spec.css">
+</head>
+<body data-packet="near-approval" data-agent="agent1" data-packet-file="ui/spec-approvals-full/packets/near-approval.json">
+  <header>
+    <h1 id="packet-title">Spec review (full)</h1>
+    <p class="lede" id="packet-summary">Loading the packet…</p>
+    <details id="packet-about">
+      <summary>About this review</summary>
+      <div id="packet-about-body" class="stack"></div>
+    </details>
+    <dl class="meta">
+      <dt>Packet</dt><dd id="meta-packet">…</dd>
+      <dt>Sources</dt><dd id="meta-sources">…</dd>
+      <dt>Contract</dt><dd id="meta-contract"></dd>
+      <dt>Code</dt><dd id="meta-code">Checking…</dd>
+      <dt>Owner</dt><dd id="meta-owner">Checking…</dd>
+      <dt>Filed by</dt><dd id="meta-agent"></dd>
+    </dl>
+    <div class="row">
+      <button type="button" id="connect" class="primary">Connect wallet</button>
+      <button type="button" id="refresh">Refresh</button>
+      <button type="button" id="export">Export review</button>
+    </div>
+    <p id="wallet-status" class="when">Not connected. You can read the packet without a wallet.</p>
+    <div class="progress" aria-live="polite">
+      <div class="bar" id="progress-bar" role="img" aria-label="Review progress"></div>
+      <div class="legend" id="progress-legend"></div>
+    </div>
+    <p id="checked" class="when"></p>
+  </header>
+
+  <p id="banner" class="status" hidden></p>
+
+  <div class="layout">
+    <nav class="items" aria-label="Packet items">
+      <input id="item-filter" type="search" placeholder="Filter items" aria-label="Filter items" autocomplete="off" spellcheck="false">
+      <ol id="item-list"><li class="empty">Loading…</li></ol>
+    </nav>
+    <main>
+      <section class="detail" id="detail" aria-live="polite">
+        <p class="empty">Pick an item.</p>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-lead"></p>
+    <p class="when" id="confirm-meta"></p>
+    <pre class="action" id="confirm-action"></pre>
+    <p id="confirm-note" class="when" hidden></p>
+    <div class="row">
+      <button type="button" id="confirm-go" class="primary">Sign</button>
+      <button type="button" id="confirm-cancel">Cancel</button>
+    </div>
+  </dialog>
+
+  <footer>
+    <details class="settings">
+      <summary>Contract, network and packet</summary>
+      <form id="settings">
+        <label for="set-packet">Packet</label>
+        <input id="set-packet" name="packet" autocomplete="off" spellcheck="false" required>
+        <label for="set-agent">Agent that files the items</label>
+        <input id="set-agent" name="agent" autocomplete="off" spellcheck="false" required>
+        <label for="set-contract">Contract account</label>
+        <input id="set-contract" name="contract" autocomplete="off" spellcheck="false" required>
+        <label for="set-network">Network</label>
+        <select id="set-network" name="network">
+          <option value="testnet">testnet</option>
+          <option value="mainnet">mainnet</option>
+        </select>
+        <label for="set-rpc">RPC URL</label>
+        <input id="set-rpc" name="rpc" type="url" autocomplete="off" spellcheck="false" required>
+        <label for="set-hash">Expected code hash</label>
+        <input id="set-hash" name="code_hash" autocomplete="off" spellcheck="false">
+        <p class="row"><button type="submit">Use these</button></p>
+      </form>
+    </details>
+    <p>Items are filed with <code>scripts/near/submit-spec-packet.sh</code>. The owner registers your wallet's public key with <code>scripts/near/add-approver.sh</code>. See <a href="README.md">README.md</a>. One signature per requirement (R1–R6, D1–D17) is at <a href="../spec-approvals/">spec-approvals</a>. The request list is at <a id="approvals-link" href="../approvals/">the approver page</a>.</p>
+  </footer>
+
+  <!-- NEAR Connect 0.11.4, commit de0f08af1e07c19fe5f80070383231d16ef924f6. SRI pins the bytes. Same pin as ../approvals/. -->
+  <script
+    src="https://cdn.jsdelivr.net/gh/azbang/near-connect@de0f08af1e07c19fe5f80070383231d16ef924f6/cdn/hot-connect.iife.js"
+    integrity="sha384-6eNPlV+Bf92wTtH7ZfZE8sZPdohJ84VDXuVVegFjBvJsGWE6BXTT1he2jKjalJ9L"
+    crossorigin="anonymous"></script>
+  <script src="../shared/approval-kit.js"></script>
+  <script src="../shared/spec-kit.js"></script>
+  <script src="../shared/spec-app.js"></script>
+</body>
+</html>

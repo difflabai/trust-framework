@@ -1,7 +1,13 @@
 /*
- * Spec approval page. Loads a spec review packet (packets/<id>.json), finds
+ * Spec approval page. Shared by ui/spec-approvals and ui/spec-approvals-full.
+ * Loads a spec review packet (packets/<id>.json, next to the page), finds
  * the request filed for each item on the approval contract, and lets an
  * approver read the item's supporting material and sign approve or reject.
+ *
+ * The page sets the default packet on <body data-packet>, the repo-relative
+ * manifest path on data-packet-file, the filing account on data-agent (a
+ * short name is <name>.<parent> of approvals.<parent>), and data-group="prefix"
+ * to group the list by item-id prefix.
  *
  * Trust: the chain is the source of truth for what was filed and decided.
  * The packet file is checked against it: the page recomputes each item's
@@ -21,8 +27,23 @@
   var params = new URLSearchParams(location.search);
   var cfg = K.readConfig(params);
   var api = K.client(cfg);
-  var packetId = (params.get("packet") || "near-approval").trim();
-  var agent = (params.get("agent") || defaultAgent(cfg.contract)).trim().toLowerCase();
+  var defaultPacket = (document.body.dataset.packet || "near-approval").trim();
+  var packetFile = (document.body.dataset.packetFile || "").trim();
+  var packetId = (params.get("packet") || defaultPacket).trim();
+  var agent = resolveAgent(cfg.contract, params.get("agent"));
+  var itemQuery = "";
+  var GROUP_LABEL = {
+    R: "Behaviour",
+    D: "Rules",
+    TX: "Transitions",
+    INV: "Invariants",
+    LEM: "Lemmas",
+    HIST: "History",
+    TR: "Traces",
+    RD: "Reads",
+    ROB: "Robustness",
+    ST: "Store"
+  };
 
   var manifest = null;
   var items = [];               // [{item, hash, action}]
@@ -39,9 +60,20 @@
   var pendingConfirm = null;
   var contractInfo = null;
 
+  function parentOf(contract) {
+    return contract.indexOf("approvals.") === 0 ? contract.slice("approvals.".length) : contract;
+  }
+
+  // data-agent or ?agent= may be a short name (agent1) or a full account id.
+  // A short name is <name>.<parent>, the same expansion submit-spec-packet.sh uses.
+  function resolveAgent(contract, raw) {
+    var name = (raw || document.body.dataset.agent || "agent1").trim().toLowerCase();
+    if (name.indexOf(".") === -1) name = name + "." + parentOf(contract);
+    return name;
+  }
+
   function defaultAgent(contract) {
-    var parent = contract.indexOf("approvals.") === 0 ? contract.slice("approvals.".length) : contract;
-    return "spec-agent." + parent;
+    return resolveAgent(contract, document.body.dataset.agent || "agent1");
   }
 
   function setBanner(message, kind, link) {
@@ -107,6 +139,14 @@
     var about = $("packet-about-body");
     about.replaceChildren();
     if (p.qualifies) about.append(el("p", {}, [el("strong", {}, ["Who may sign: "]), p.qualifies]));
+    if (p.module && p.module.name) {
+      var mod = p.module;
+      var bits = [mod.name];
+      if (mod.source) bits.push("source " + mod.source);
+      if (mod.verus_model) bits.push("Verus model " + mod.verus_model);
+      if (mod.prolog_requirements) bits.push("Prolog " + mod.prolog_requirements);
+      about.append(el("p", {}, [el("strong", {}, ["Module: "]), bits.join(" · ")]));
+    }
     (p.why_a_day || []).forEach(function (para) { about.append(el("p", {}, [para])); });
     about.append(el("p", { class: "when" }, ["Approving an item signs its exact text on chain: the action carries the SHA-256 of the item, its properties, assumptions and findings, and the commits it was built from."]));
     $("meta-packet").textContent = p.id + " " + p.version + " · " + items.length + " items · about " + totalMinutes() + " min of reading";
@@ -279,10 +319,34 @@
     );
   }
 
+  function matchesFilter(entry) {
+    if (!itemQuery) return true;
+    var item = entry.item;
+    var blob = [item.id, item.title, item.summary || "", item.statement || ""].join("\n").toLowerCase();
+    return blob.indexOf(itemQuery) !== -1;
+  }
+
+  function groupOf(id) {
+    var m = /^([A-Za-z]+)/.exec(id);
+    return m ? m[1] : "";
+  }
+
   function renderList() {
     var list = $("item-list");
     list.replaceChildren();
+    var grouped = document.body.dataset.group === "prefix";
+    var shown = 0;
+    var lastGroup = null;
     items.forEach(function (entry) {
+      if (!matchesFilter(entry)) return;
+      shown++;
+      if (grouped) {
+        var g = groupOf(entry.item.id);
+        if (g !== lastGroup) {
+          lastGroup = g;
+          list.append(el("li", { class: "group" }, [GROUP_LABEL[g] || g || "Items"]));
+        }
+      }
       var t = ticks(entry);
       var status = statusOf(entry);
       var b = el("button", {
@@ -296,6 +360,7 @@
       ]);
       list.append(el("li", {}, [b]));
     });
+    if (!shown) list.append(el("li", { class: "empty" }, [itemQuery ? "No items match." : "No items."]));
   }
 
   function select(id) {
@@ -320,6 +385,28 @@
       ul.append(el("li", {}, [el("label", {}, [box, el("span", {}, [render ? render(label, i) : label])])]));
     });
     return ul;
+  }
+
+  function propertyFacts(item) {
+    var id = item.properties[0];
+    var p = manifest.properties[id] || {};
+    var rows = [
+      ["ID", id],
+      ["Module", p.module],
+      ["Layer", p.layer],
+      ["Evidence", p.evidence],
+      ["Status", p.status],
+      ["Harness", p.harness],
+      ["Cross", Array.isArray(p.cross) ? p.cross.join(", ") : ""],
+      ["Depends on", Array.isArray(p.depends_on) ? p.depends_on.join(", ") : ""]
+    ];
+    if (p.description && p.description !== item.summary) rows.push(["Description", p.description]);
+    var dl = el("dl", { class: "facts" });
+    rows.forEach(function (row) {
+      if (!row[1]) return;
+      dl.append(el("dt", {}, [row[0]]), el("dd", {}, [String(row[1])]));
+    });
+    return dl;
   }
 
   function table(headers, rows, filterable) {
@@ -393,7 +480,8 @@
       }
       if (st.current.status === "void") chain.append(el("p", { class: "warn" }, ["The agent key that filed this request was revoked, so it can no longer be decided. Re-run submit-spec-packet.sh to file the item again."]));
     } else {
-      chain.append(el("p", { class: "warn" }, ["Not filed on " + cfg.contract + " yet. The owner files it with: ", el("code", {}, ["scripts/near/submit-spec-packet.sh --item " + item.id])]));
+      var fileCmd = "scripts/near/submit-spec-packet.sh" + (packetFile ? " --packet " + packetFile : "") + " --item " + item.id;
+      chain.append(el("p", { class: "warn" }, ["Not filed on " + cfg.contract + " yet. The owner files it with: ", el("code", {}, [fileCmd])]));
     }
     if (st.foreign.length) {
       chain.append(el("p", { class: "warn" }, ["The same text was also filed by another agent (" + st.foreign.map(function (r) { return r.agent_account_id + " as request " + r.request_id; }).join(", ") + "). Only requests from " + agent + " count for this packet."]));
@@ -401,6 +489,10 @@
     nodes.push(el("section", {}, [el("h3", {}, ["On chain"]), chain]));
 
     if (item.summary) nodes.push(el("p", {}, [item.summary]));
+    if (item.statement) {
+      nodes.push(el("h3", {}, ["Statement"]));
+      nodes.push(el("pre", { class: "statement" }, [item.statement]));
+    }
 
     // Reading.
     nodes.push(el("h3", {}, ["Read"]));
@@ -430,8 +522,24 @@
       renderDetail();
     }));
 
-    // Supporting tables.
-    if (item.properties.length) {
+    if (item.see && item.see.length) {
+      var see = el("ul", { class: "see" });
+      item.see.forEach(function (r) {
+        var src = manifest.packet.sources[r.source] || {};
+        see.append(el("li", {}, [
+          el("a", { href: S.sourceUrl(manifest, r), target: "_blank", rel: "noopener" }, [r.label]),
+          el("span", { class: "when" }, [" · " + (src.repo || r.source) + "@" + (src.commit || "").slice(0, 7) + (r.sha256 ? " · sha256 " + r.sha256.slice(0, 16) + "…" : "")])
+        ]));
+      });
+      nodes.push(el("h3", {}, ["Also see"]));
+      nodes.push(see);
+    }
+
+    // Supporting tables. One property is the item itself; a list stays a table.
+    if (item.properties.length === 1) {
+      nodes.push(el("h3", {}, ["Property record"]));
+      nodes.push(propertyFacts(item));
+    } else if (item.properties.length) {
       nodes.push(el("h3", {}, ["Properties (" + item.properties.length + ")"]));
       nodes.push(table(["ID", "Statement", "Layer", "Evidence", "Status"], item.properties.map(function (id) {
         var p = manifest.properties[id];
@@ -677,6 +785,13 @@
     $("approvals-link").href = "../approvals/" + (approvalsQuery(null) ? "?" + approvalsQuery(null) : "");
   }
 
+  var filter = $("item-filter");
+  if (filter) {
+    filter.addEventListener("input", function () {
+      itemQuery = filter.value.trim().toLowerCase();
+      if (manifest) renderList();
+    });
+  }
   $("connect").addEventListener("click", connectWallet);
   $("refresh").addEventListener("click", function () { refresh(); });
   $("export").addEventListener("click", exportReview);
@@ -698,7 +813,7 @@
     if (!K.rpcAllowed(rpc)) return setBanner("RPC must be HTTPS, or HTTP to localhost.", "bad");
     if (!PACKET_RE.test(pkt)) return setBanner("Packet name is not valid.", "bad");
     var q = new URLSearchParams();
-    if (pkt !== "near-approval") q.set("packet", pkt);
+    if (pkt !== defaultPacket) q.set("packet", pkt);
     if (contract !== K.DEFAULT_CONTRACT) q.set("contract", contract);
     if (network !== "testnet") q.set("network", network);
     if (rpc !== K.defaultRpc(network)) q.set("rpc", rpc);
