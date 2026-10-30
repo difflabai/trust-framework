@@ -76,7 +76,12 @@ def b58decode(text):
 
 
 def parse_secret_key(secret):
-    """ed25519:<base58 of 64 bytes seed||pub> -> (secret_str, public_key_str)."""
+    """ed25519:<base58 of 64 bytes seed||pub> -> (secret_str, public_key_str).
+
+    Only the final 32 bytes form the public key returned in the second slot.
+    Printing that value is intentional: no seed bytes are included. The full
+    secret in the first slot must only be written to private credential files.
+    """
     secret = secret.strip()
     if not secret.startswith("ed25519:"):
         if secret.startswith("secp256k1:"):

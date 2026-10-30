@@ -1,0 +1,24 @@
+name: near-tools
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/near/**"
+      - ".github/workflows/near-tools.yml"
+  pull_request:
+    paths:
+      - "scripts/near/**"
+      - ".github/workflows/near-tools.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  credential-output:
+    name: credential output regression tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: python3 -m unittest discover -s scripts/near -p 'test_*.py' -v
