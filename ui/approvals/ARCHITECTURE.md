@@ -10,7 +10,7 @@ submits is the one the approver's wallet signs.
 `index.html` is the application. Contract reads, the wallet connector,
 signing and the text-safety helpers live in `../shared/approval-kit.js`,
 and the base styles in `../shared/base.css`. Both are shared with
-`../spec-approvals/`. No build, no framework, no backend. Views
+`../spec-approvals/` and `../spec-approvals-full/`. No build, no framework, no backend. Views
 are `fetch` calls to a NEAR JSON-RPC at `finality: final`. Signing uses
 [NEAR Connect](https://docs.near.org/tools/near-connect)
 (`@hot-labs/near-connect` 0.11.4), loaded from a pinned URL with

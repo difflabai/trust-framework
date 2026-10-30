@@ -1,16 +1,24 @@
 # Spec approval UI
 
-A page for a spec reviewer. It walks a spec review packet item by item and
-signs `approve` or `reject` on the approval contract for each one. For each
-item it shows:
+A page for a spec reviewer. It walks the 23 requirements (R1–R6, D1–D17)
+one sentence at a time and signs `approve` or `reject` on the approval
+contract for each one. The full packet review is
+[`../spec-approvals-full/`](../spec-approvals-full/README.md). Both pages
+share `../shared/spec-app.js`.
 
-- what to read, with links to the exact file and lines at the pinned commits;
-- what to check;
-- the properties, assumptions and findings the item covers.
+For each requirement it shows:
 
-The packet for the NEAR approval contract is
-[`packets/near-approval.json`](packets/near-approval.json). It is built from
-formalver's spec review packet, `status.toml` and `strategy.md`.
+- the sentence from `requirement/2` in `approval_req.pl`, which is what you sign;
+- the properties `traceability.pl` says discharge that sentence;
+- what to check before approving.
+
+The property text under a sentence is the proof obligation. You are signing
+the sentence, and that those properties are the right discharge, not the
+proof obligation as if it were the requirement.
+
+The packet is [`packets/requirements.json`](packets/requirements.json). It
+is built from formalver's `approval_req.pl`, `traceability.pl`, `status.toml`
+and `strategy.md` at the same commits as the full packet.
 
 ## Run
 
@@ -24,28 +32,29 @@ this directory: the page loads `../shared/`. Use HTTP on localhost, not
 
 | Param | Default |
 |---|---|
-| `packet` | `near-approval`, which loads `packets/near-approval.json` |
-| `item` | the first item. Opens that item. |
-| `agent` | `spec-agent.<parent>` for `approvals.<parent>`. Only requests filed by this account count. |
+| `packet` | `requirements`, which loads `packets/requirements.json` |
+| `item` | the first requirement. Opens that requirement. |
+| `agent` | `agent1.<parent>` for `approvals.<parent>` (`data-agent`). A short name is expanded the same way. Only requests filed by this account count. |
 | `contract`, `network`, `rpc`, `code_hash` | as in [`../approvals/`](../approvals/README.md) |
+
+The same agent can file this packet and the full packet. The page matches a
+request by the action text, which names this packet id, so the two reviews
+do not collide.
 
 ## Flow
 
-1. The owner files the packet, one request per item:
+1. The owner files the packet, one request per requirement:
 
    ```bash
-   scripts/near/submit-spec-packet.sh --dry-run        # plan; sends nothing
-   scripts/near/submit-spec-packet.sh                  # files as the .env agent (APPROVAL_AGENT_*)
-   scripts/near/submit-spec-packet.sh --setup-agent    # or, with no agent in .env: creates spec-agent.<NEAR_ACCOUNT_ID>
+   scripts/near/submit-spec-packet.sh --packet ui/spec-approvals/packets/requirements.json --dry-run
+   scripts/near/submit-spec-packet.sh --packet ui/spec-approvals/packets/requirements.json
+   scripts/near/submit-spec-packet.sh --packet ui/spec-approvals/packets/requirements.json --item D5
    ```
 
    The script reads its credentials from `.env`, like every script in
-   `scripts/near/` (see [its README](../../scripts/near/README.md)). The
-   agent is `APPROVAL_AGENT_ACCOUNT_ID` when `.env` has one (set by
-   `principal-env.sh`, signing with `APPROVAL_AGENT_PRIVATE_KEY`), else
-   `spec-agent.<NEAR_ACCOUNT_ID>`. Open the page with `?agent=<that account>`
-   if it is not `spec-agent`. The script is idempotent: re-running it files
-   only the items that are missing.
+   `scripts/near/` (see [its README](../../scripts/near/README.md)). It is
+   idempotent: re-running it files only the requirements that are missing.
+   Open the page with `?agent=<that account>` if the agent is not `agent1`.
 
 2. The owner registers the reviewer's wallet key as an approver:
 
@@ -56,15 +65,16 @@ this directory: the page loads `../shared/`. Use HTTP on localhost, not
    `--force` is needed because a browser wallet signs with a full-access
    key. The reviewer's account must not be the agent account.
 
-3. The reviewer opens the page and connects their wallet. For each item they
-   read the linked material, tick each reading and check line, and then
-   either approve or reject it. Approve stays disabled until every line is
-   ticked. Reject needs a note first. Ticks and notes are kept in the
-   browser (localStorage), keyed by the item's hash.
+3. The reviewer opens the page and connects their wallet. For each
+   requirement they read the sentence and the properties that discharge it,
+   tick each reading and check line, and then either approve or reject it.
+   Approve stays disabled until every line is ticked. Reject needs a note
+   first. Ticks and notes are kept in the browser (localStorage), keyed by
+   the requirement's hash.
 
-4. **Export review** downloads a JSON record of the review: each item's
-   hash, request id, status, who decided it, and the reviewer's note. The
-   record goes with the PR that sets `[review] spec_reviewer` in formalver.
+4. **Export review** downloads a JSON record of the review: each
+   requirement's hash, request id, status, who decided it, and the
+   reviewer's note.
 
 ## What an approval binds to
 
@@ -72,39 +82,34 @@ Each request's action is five lines:
 
 ```text
 spec-review/1
-packet: near-approval 2026-10-20
-item: D1
-title: Verus spec machine and lemma statements
-sha256: 363f5cba…
+packet: requirements 2026-10-30
+item: D5
+title: Separation of duties: an approver cannot approve or reject a request made by an agent key bound to the same account
+sha256: …
 ```
 
-The hash covers the item's canonical JSON, together with its properties,
-assumptions and findings, the packet header and the source commits. Each
-reading entry also carries the sha256 of its file at the pinned commit. The
-format is defined in
-[`scripts/near/spec_packet.py`](../../scripts/near/spec_packet.py), and
-[`spec-kit.js`](spec-kit.js) computes the same value.
+The hash covers the sentence, the properties named as its discharge (their
+status.toml records), the assumptions and findings those records name, the
+packet header and the source commits. Each reading entry also carries the
+sha256 of its file at the pinned commit. The format is the same as the full
+packet, defined in
+[`scripts/near/spec_packet.py`](../../scripts/near/spec_packet.py).
+[`../shared/spec-kit.js`](../shared/spec-kit.js) computes the same value.
 
 The page recomputes each hash from the packet file it loaded and matches
 requests by exact action. If the file served to the browser differs from
 the one that was filed, no request matches it and nothing can be approved.
 
-Requests filed for an earlier text of an item (same packet and item, a
-different hash) are listed as outdated. The page offers to reject them. The
-contract has no way to withdraw a request.
-
-## Rebuilding a packet
+## Rebuilding the packet
 
 ```bash
 ui/spec-approvals/tools/build-packet.py --formalver ~/src/formalver --trust-framework .
-ui/spec-approvals/tools/check-hashes.sh     # Python and JS agree on every hash
+ui/spec-approvals-full/tools/check-hashes.sh     # Python and JS agree on every hash
 ```
 
-`packets/near-approval.src.json` holds the items and pins the commits.
-Every file is read with `git show <commit>:<path>`, so the clones only need
-those commits fetched. A new review round needs a new `packet.version`.
-Changing an item's text changes its hash, so any request filed for the old
-text shows up as outdated.
+`packets/requirements.src.json` pins the commits. A new review round needs
+a new `packet.version`. Changing a sentence or its discharge changes its
+hash, so any request filed for the old text shows up as outdated.
 
 ## What the page will not do
 
@@ -113,4 +118,4 @@ not sign while the contract's `code_hash` differs from the expected one, or
 for a request filed by the connected account. It will not approve a
 request whose action differs from the packet text it loaded. Signing goes
 through the same pinned NEAR Connect script as `../approvals/`, using the
-shared code in `../shared/approval-kit.js`.
+shared code in `../shared/approval-kit.js` and `../shared/spec-app.js`.

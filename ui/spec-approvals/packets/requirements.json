@@ -1,0 +1,4812 @@
+{
+ "format": "spec-packet/1",
+ "packet": {
+  "id": "requirements",
+  "version": "2026-10-30",
+  "title": "approval requirements",
+  "summary": "Approve or reject each requirement (R1–R6, D1–D17), one signature per sentence. You certify that the sentence says what the contract is meant to do, and that the properties listed under it are the right discharge. The property text is the proof obligation; you are not signing that text as the requirement.",
+  "qualifies": "A named human who did not write approval-core. Claude sessions wrote most of the specs and harnesses, so a review by Claude does not count.",
+  "why_a_day": [
+   "The 23 sentences are requirement/2 in prolog/requirements/approval_req.pl. That file was written from strategy.md (the Target, sections 1–4 and 5.12) and the contract README, not from the Rust. The Prolog step machine was then written from these sentences.",
+   "Each item signs one sentence and the properties traceability.pl says discharge it. Several properties share one sentence. A low-level statement such as the add_principal post-state is a proof obligation under a sentence, not a sentence of its own.",
+   "The full packet (ui/spec-approvals-full) is a separate review. Signing a requirement here does not sign that packet."
+  ],
+  "sources": {
+   "formalver": {
+    "repo": "difflabai/formalver",
+    "commit": "f3c64714853649374342e8833c687444b3a057e4",
+    "root": "projects/near-approval"
+   },
+   "trust-framework": {
+    "repo": "difflabai/trust-framework",
+    "commit": "18f57cb218f391d59d14f9db68dd2dd6951d71fb",
+    "root": ""
+   }
+  }
+ },
+ "items": [
+  {
+   "id": "R1",
+   "title": "An agent requests an action with its own registered agent key (request_action)",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "An agent requests an action with its own registered agent key (request_action).",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      47,
+      47
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      26,
+      26
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-3",
+    "TX-4",
+    "TR-1",
+    "SH-1",
+    "RT-KEY"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-STRLEN",
+    "ASM-SIGNER",
+    "ASM-PRED"
+   ],
+   "findings": []
+  },
+  {
+   "id": "R2",
+   "title": "A successful request emits the NEP-297 event approval_requested",
+   "minutes": 5,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "A successful request emits the NEP-297 event approval_requested.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      48,
+      48
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      27,
+      27
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "SH-4",
+    "SH-6",
+    "C-4",
+    "RT-TRACE"
+   ],
+   "assumptions": [
+    "ASM-ATOMIC",
+    "ASM-COMPILE",
+    "ASM-SDK"
+   ],
+   "findings": []
+  },
+  {
+   "id": "R3",
+   "title": "An approver approves a request with its own registered approver key (approve)",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "An approver approves a request with its own registered approver key (approve).",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      49,
+      49
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      28,
+      28
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-3",
+    "TX-5",
+    "INV-5",
+    "INV-6",
+    "TR-1",
+    "RT-KEY",
+    "RT-RELAY"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-SIGNER",
+    "ASM-PRED"
+   ],
+   "findings": []
+  },
+  {
+   "id": "R4",
+   "title": "A successful approval emits the NEP-297 event action_approved",
+   "minutes": 5,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "A successful approval emits the NEP-297 event action_approved.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      50,
+      50
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      29,
+      29
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "SH-5",
+    "SH-6",
+    "C-4",
+    "RT-TRACE"
+   ],
+   "assumptions": [
+    "ASM-COMPILE",
+    "ASM-SDK"
+   ],
+   "findings": []
+  },
+  {
+   "id": "R5",
+   "title": "The approval proof for a specific request is publicly readable (get_approval(request_id)) and equals the recorded proof",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "The approval proof for a specific request is publicly readable (get_approval(request_id)) and equals the recorded proof.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      51,
+      51
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      30,
+      30
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "RD-1",
+    "RD-5",
+    "HIST-5",
+    "SH-7",
+    "SH-8",
+    "VER-1"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-FINAL",
+    "ASM-ATOMIC"
+   ],
+   "findings": []
+  },
+  {
+   "id": "R6",
+   "title": "All approvals are publicly readable as a paged log in approval order (get_approvals(from_index, limit)); the documented client loop yields every proof...",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "All approvals are publicly readable as a paged log in approval order (get_approvals(from_index, limit)); the documented client loop yields every proof exactly once.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      52,
+      52
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      31,
+      31
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "RD-2",
+    "RD-3",
+    "RD-4",
+    "RD-5",
+    "SH-7",
+    "RES-3",
+    "VER-5"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-IDENT",
+    "ASM-LIMITS"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D1",
+   "title": "Identity is the signing key: a call is accepted only if signer_account_pk is registered for the method's role and bound to signer_account_id",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Identity is the signing key: a call is accepted only if signer_account_pk is registered for the method's role and bound to signer_account_id.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment.",
+    "Each related finding is acceptable with the resolution given."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      54,
+      54
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      33,
+      33
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-3",
+    "INV-8",
+    "RT-KEY",
+    "RT-RELAY",
+    "RT-SELFACCT",
+    "RT-METATX",
+    "RT-FCKEY",
+    "DEP-1",
+    "VER-8"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-SIGNER",
+    "ASM-PRED",
+    "ASM-META",
+    "ASM-FCKEY",
+    "ASM-DEPLOY",
+    "ASM-OWNER"
+   ],
+   "findings": [
+    "F-9"
+   ]
+  },
+  {
+   "id": "D2",
+   "title": "No relaying: predecessor_account_id must equal signer_account_id (the caller is the signer)",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "No relaying: predecessor_account_id must equal signer_account_id (the caller is the signer).",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment.",
+    "Each related finding is acceptable with the resolution given."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      55,
+      55
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      34,
+      34
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-3",
+    "INV-8",
+    "RT-KEY",
+    "RT-RELAY",
+    "RT-SELFACCT",
+    "RT-METATX",
+    "RT-FCKEY",
+    "DEP-1",
+    "VER-8"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-SIGNER",
+    "ASM-PRED",
+    "ASM-META",
+    "ASM-FCKEY",
+    "ASM-DEPLOY",
+    "ASM-OWNER"
+   ],
+   "findings": [
+    "F-9"
+   ]
+  },
+  {
+   "id": "D3",
+   "title": "The owner, fixed at init, manages keys: add_agent, add_approver and revoke_key are owner-only; owner checks use the predecessor",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "The owner, fixed at init, manages keys: add_agent, add_approver and revoke_key are owner-only; owner checks use the predecessor.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      56,
+      56
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      35,
+      35
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-1",
+    "TX-2",
+    "TX-6",
+    "HIST-6",
+    "HIST-7",
+    "SH-1"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-IDENT",
+    "ASM-MODEL"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D4",
+   "title": "Each key is registered at most once at a time, with exactly one role (agent or approver), bound to exactly one account",
+   "minutes": 5,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Each key is registered at most once at a time, with exactly one role (agent or approver), bound to exactly one account.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      57,
+      57
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      36,
+      36
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "INV-0",
+    "INV-6",
+    "C-1"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D5",
+   "title": "Separation of duties: an approver cannot approve or reject a request made by an agent key bound to the same account",
+   "minutes": 5,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Separation of duties: an approver cannot approve or reject a request made by an agent key bound to the same account.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      58,
+      58
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      37,
+      37
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "INV-5"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D6",
+   "title": "A request is decided (approved or rejected) at most once; decided requests are never modified",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "A request is decided (approved or rejected) at most once; decided requests are never modified.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      59,
+      59
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 1 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      38,
+      38
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 2 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      58,
+      58
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 3 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      70,
+      70
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-5",
+    "HIST-2",
+    "TR-2",
+    "TLA-SAFE",
+    "TLA-IND",
+    "LEAN-IND",
+    "LEAN-STEP",
+    "LEAN-TR"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-IDENT",
+    "ASM-TLA-SCOPE",
+    "ASM-LEAN-TLA"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D7",
+   "title": "Durable revocation: revoke_key removes a key immediately and records when, against that registration; requests pending under the revoked registration become...",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Durable revocation: revoke_key removes a key immediately and records when, against that registration; requests pending under the revoked registration become void and stay void even if the key is registered again; proofs report later revocations of either key.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment.",
+    "Each related finding is acceptable with the resolution given."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      60,
+      60
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 1 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      39,
+      39
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 2 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      56,
+      56
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 3 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      59,
+      59
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 4 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      71,
+      71
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TR-3",
+    "HIST-8",
+    "INV-8",
+    "LEM-4",
+    "RD-7",
+    "INV-11",
+    "INV-12",
+    "INV-14",
+    "INV-15",
+    "INV-16",
+    "HIST-10",
+    "TR-7",
+    "RD-8",
+    "TLA-SAFE",
+    "TLA-IND",
+    "LEAN-IND",
+    "LEAN-STEP",
+    "LEAN-TR"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-IDENT",
+    "ASM-TLA-SCOPE",
+    "ASM-LEAN-TLA"
+   ],
+   "findings": [
+    "F-14"
+   ]
+  },
+  {
+   "id": "D8",
+   "title": "Append-only paged log: requests and proofs are never changed or removed; request ids are dense; the approval log is append-only in approval order; pages are...",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Append-only paged log: requests and proofs are never changed or removed; request ids are dense; the approval log is append-only in approval order; pages are clamped to 100 (default 50); clients page until an empty page.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      61,
+      61
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 1 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      40,
+      40
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 2 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      72,
+      72
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "INV-1",
+    "INV-3",
+    "INV-4",
+    "INV-7",
+    "LEM-1",
+    "LEM-2",
+    "HIST-3",
+    "HIST-4",
+    "RD-2",
+    "RD-4",
+    "LEAN-IND",
+    "LEAN-STEP"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-LEAN-TLA"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D9",
+   "title": "Bounded storage: an action is 1 to 2048 bytes; an agent key holds at most 16 pending requests; approving or rejecting frees a slot; every accepted request...",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Bounded storage: an action is 1 to 2048 bytes; an agent key holds at most 16 pending requests; approving or rejecting frees a slot; every accepted request stays approvable within runtime log limits.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment.",
+    "Each related finding is acceptable with the resolution given."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      62,
+      62
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 1 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      41,
+      41
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 2 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      60,
+      60
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 3 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      73,
+      73
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 4 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      75,
+      75
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "INV-2",
+    "INV-9",
+    "ROB-3",
+    "TR-6",
+    "RES-1",
+    "RES-2",
+    "SH-13",
+    "TLA-LIVE-1",
+    "TLA-LIVE-2",
+    "LEAN-IND",
+    "LEAN-LIVE"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-STRLEN",
+    "ASM-IDENT",
+    "ASM-STAKE",
+    "ASM-LIMITS",
+    "ASM-TLA-SCOPE",
+    "ASM-LEAN-TLA"
+   ],
+   "findings": [
+    "F-4",
+    "F-17"
+   ]
+  },
+  {
+   "id": "D10",
+   "title": "An approval commits to content: approve(request_id, action) fails unless action equals the stored action",
+   "minutes": 5,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "An approval commits to content: approve(request_id, action) fails unless action equals the stored action.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      63,
+      63
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      42,
+      42
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-5",
+    "TR-1"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-SIGNER",
+    "ASM-PRED"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D11",
+   "title": "No upgrade, ownership transfer, expiry or M-of-N threshold",
+   "minutes": 5,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "No upgrade, ownership transfer, expiry or M-of-N threshold.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      66,
+      66
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      44,
+      44
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "SH-11",
+    "SH-12",
+    "C-1",
+    "C-6"
+   ],
+   "assumptions": [
+    "ASM-SDK"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D12",
+   "title": "Atomic, bounded execution: a call the core rejects writes nothing and emits nothing; every guard runs before any write; the core never panics; each mutator...",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Atomic, bounded execution: a call the core rejects writes nothing and emits nothing; every guard runs before any write; the core never panics; each mutator does bounded work.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment.",
+    "Each related finding is acceptable with the resolution given."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      67,
+      67
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 1 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      45,
+      45
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 2 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      78,
+      78
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-0",
+    "ROB-1",
+    "ROB-2",
+    "ROB-4",
+    "ST-1",
+    "ST-2",
+    "ST-3",
+    "ST-4",
+    "ST-5",
+    "ST-6",
+    "ST-7",
+    "ST-8",
+    "SH-2",
+    "SH-3",
+    "RD-6",
+    "LEM-3",
+    "LEAN-DELTA",
+    "LINK",
+    "LEAN-COVER",
+    "LEAN-FRAME",
+    "LEAN-REN",
+    "K-LINK-T"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-SDK",
+    "ASM-LEAN-TLA",
+    "ASM-NU"
+   ],
+   "findings": [
+    "F-6",
+    "F-7"
+   ]
+  },
+  {
+   "id": "D13",
+   "title": "Timestamps (block height and ns) are recorded on requests and decisions and are ordered along the log",
+   "minutes": 5,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Timestamps (block height and ns) are recorded on requests and decisions and are ordered along the log.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      68,
+      68
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      46,
+      46
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "INV-10",
+    "TR-4",
+    "RT-TIME"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-TIME"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D14",
+   "title": "The deployed artifact is the reproducible build of the verified source, locked at deploy",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "The deployed artifact is the reproducible build of the verified source, locked at deploy.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      69,
+      69
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      47,
+      47
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "RT-CODEHASH",
+    "RT-RESET",
+    "RT-TRACE",
+    "DEP-1",
+    "VER-2",
+    "VER-3",
+    "VER-6"
+   ],
+   "assumptions": [
+    "ASM-DEPLOY",
+    "ASM-COMPILE",
+    "ASM-CODE",
+    "ASM-SDK",
+    "ASM-OWNER"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D15",
+   "title": "Verification hygiene: specs are independent of the code (ASM-SPEC) and tools are sound and checked by canaries and mutants (ASM-TOOLS)",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Verification hygiene: specs are independent of the code (ASM-SPEC) and tools are sound and checked by canaries and mutants (ASM-TOOLS).",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      70,
+      70
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 1 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      48,
+      48
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 2 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      62,
+      62
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 3 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      66,
+      66
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge row 4 in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      76,
+      76
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TR-5",
+    "MC-1",
+    "MC-2",
+    "C-2",
+    "C-3",
+    "C-5",
+    "C-6",
+    "C-7",
+    "C-8",
+    "C-9",
+    "C-10",
+    "TLA-WIT",
+    "REF-1",
+    "REF-2",
+    "REF-3",
+    "REF-4",
+    "REF-5",
+    "C-2t",
+    "MC-3",
+    "CUT-1",
+    "CUT-2",
+    "U-1",
+    "LEAN-GUARD",
+    "LEAN-WIT",
+    "REF-5L",
+    "MC-4"
+   ],
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-LEAN-TLA"
+   ],
+   "findings": []
+  },
+  {
+   "id": "D16",
+   "title": "Verifier and executor discipline: proofs are read at finality from the expected contract, events are hints, executors deduplicate and bound age",
+   "minutes": 8,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "Verifier and executor discipline: proofs are read at finality from the expected contract, events are hints, executors deduplicate and bound age.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment.",
+    "Each related finding is acceptable with the resolution given."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      71,
+      71
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      49,
+      49
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "VER-1",
+    "VER-4",
+    "VER-5",
+    "VER-7",
+    "VER-8"
+   ],
+   "assumptions": [
+    "ASM-FINAL",
+    "ASM-ATOMIC",
+    "ASM-OWNER",
+    "ASM-FCKEY",
+    "ASM-PRED"
+   ],
+   "findings": [
+    "F-9"
+   ]
+  },
+  {
+   "id": "D17",
+   "title": "An Approver key of another account (not the agent's account) may reject a pending request; rejection is terminal, frees the agent key's pending slot, emits...",
+   "minutes": 12,
+   "summary": "Sign this sentence, and that the properties below are what discharges it. You are not signing the property text as the requirement.",
+   "statement": "An Approver key of another account (not the agent's account) may reject a pending request; rejection is terminal, frees the agent key's pending slot, emits action_rejected, and a rejected request is never approvable.",
+   "check": [
+    "The sentence says what the contract is meant to do.",
+    "It neither over-claims nor under-claims against the contract README.",
+    "The properties listed are the right discharge: nothing the sentence promises is missing, and none is the wrong check.",
+    "Each assumption the discharge rests on is acceptable for this deployment."
+   ],
+   "read": [
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/approval_req.pl",
+     "label": "Requirement sentence",
+     "sha256": "addd05696451f7697234746b4226faeb5dd1d05e364567fc77c39c5210427416",
+     "lines": [
+      73,
+      73
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/prolog/requirements/traceability.pl",
+     "label": "Discharge in traceability.pl",
+     "sha256": "5135628b7185ee8d0c8d3422fc96b7f05109512204ea3d565035da99d81cfcd4",
+     "lines": [
+      54,
+      54
+     ]
+    }
+   ],
+   "see": [
+    {
+     "source": "trust-framework",
+     "path": "contracts/approval/README.md",
+     "label": "Contract README",
+     "sha256": "bca19d675be6ff2e22ab60d130c238b4ea39fdcef3953806e8914bbbadcd6db6"
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "What the requirements establish (§1)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      63,
+      109
+     ]
+    },
+    {
+     "source": "formalver",
+     "path": "projects/near-approval/strategy.md",
+     "label": "Traceability table (§5.12)",
+     "sha256": "2b9dbe5b1d7e31d9a6ec14313eb29f2ddf8aeb3deff614d0c990822a4ef9ac9c",
+     "lines": [
+      526,
+      554
+     ]
+    }
+   ],
+   "properties": [
+    "TX-7",
+    "HIST-9",
+    "INV-13",
+    "INV-5",
+    "INV-6",
+    "TR-2",
+    "RD-7",
+    "TLA-LIVE-2",
+    "SH-6"
+   ],
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-IDENT",
+    "ASM-TLA-SCOPE"
+   ],
+   "findings": []
+  }
+ ],
+ "properties": {
+  "TX-3": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "authenticate: Ok <=> predecessor = signer and key registered to signer with role; errors IndirectCall, UnknownKey, WrongRole, KeyAccountMismatch; read-only",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: authenticate ensures auth_spec; kani: h_step_request, h_step_approve, h_step_reject",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TX-4": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "request_action: exact result, error order (auth, EmptyAction, ActionTooLong, TooManyPending, LogFull), appended request recording the caller's registration id, caller key pend+1",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-STRLEN"
+   ],
+   "harness": "verus: request_action ensures refines(request_spec); kani: h_step_request, h_raw_request",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TR-1": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Provenance: every proof has a prior successful request by a registered agent key and a successful approval restating the action by a registered approver key of a different account, with the agent registration continuous in between; the proof's registration ids are the registrations in force at request and approval",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-SIGNER",
+    "ASM-PRED"
+   ],
+   "harness": "verus: lemma_tr1 (runs from init), lemma_reg_stays; kani: h_init, h_step_*, h_bmc_from_init",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "SH-1": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Env mapping (caller, now) with pairwise-distinct context values; add_agent/add_approver pass the right role; all three owner methods pass the predecessor (DAO owner works, relayed owner signature fails)",
+   "assumptions": [],
+   "harness": "near-tests/tests/shell.rs sh1_env_mapping; store_diff.rs",
+   "cross": [
+    "review"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "RT-KEY": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "FC key of account a arrives as signer = predecessor = a with signer_pk = key; unregistered and cross-account keys rejected",
+   "assumptions": [
+    "ASM-SIGNER"
+   ],
+   "harness": "sandbox/tests/runtime.rs::rt_key",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "SH-4": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "approval_requested: exactly one NEP-297 line with RequestView(r), status pending; emitted only after Ok",
+   "assumptions": [
+    "ASM-ATOMIC"
+   ],
+   "harness": "near-tests/tests/shell.rs sh4_approval_requested_is_one_exact_line; store_diff.rs",
+   "cross": [
+    "review",
+    "difftest"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "SH-6": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Each change method logs exactly its one event (key_added, key_revoked with voided_pending, approval_requested, action_approved, action_rejected = returned RejectionView); new, views and failed calls log nothing",
+   "assumptions": [],
+   "harness": "near-tests/tests/shell.rs sh6_each_change_method_logs_exactly_its_event_and_nothing_else_logs; store_diff.rs",
+   "cross": [
+    "difftest"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "C-4": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Each event from exactly one method; authority/proof-changing ops emit an event or carry accepted_risk (admin ops emit key_added / key_revoked since 3426c92)",
+   "assumptions": [],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "README.md"
+   ]
+  },
+  "RT-TRACE": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Prolog traces + 200 random sequences replayed on the reproducible wasm equal spec.rs: results, exact messages, logs, views",
+   "assumptions": [
+    "ASM-COMPILE",
+    "ASM-SDK"
+   ],
+   "harness": "sandbox/tests/trace.rs::rt_trace",
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "TX-5": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "approve: exact result, error order (auth, RequestNotFound, AlreadyApproved, AlreadyRejected, AgentRevoked, ActionMismatch, SelfApproval, LogFull), approval recorded with the approver's registration id, log appended, agent key pend-1, proof = approval(s', i)",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: approve ensures refines(approve_spec); kani: h_step_approve",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-5": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Separation of duties: approver account != agent account, on every approval and rejection",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_req), lemma_full_inv; kani: h_init, h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-6": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Approver key != agent key on every approval and rejection",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_req), lemma_full_inv; kani: h_init, h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RT-RELAY": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Calls through a third-party relay contract fail IndirectCall",
+   "assumptions": [
+    "ASM-PRED"
+   ],
+   "harness": "sandbox/tests/runtime.rs::rt_relay",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "SH-5": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "action_approved: exactly one line; data = return value = get_approval(i) at approval (revocation fields null); later get_approval differs only in agent_key_revoked_at / approver_key_revoked_at",
+   "assumptions": [],
+   "harness": "near-tests/tests/shell.rs sh5_action_approved_equals_return_value_and_get_approval_forever; store_diff.rs",
+   "cross": [
+    "difftest"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "RD-1": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "approval(s,i) = Some(proof(R[i])) iff approved; None for pending, void or unknown",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: approval ensures approval_spec, lemma_rd1; kani: h_read",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RD-5": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Per-request and paged views agree; proof findable by request_id or approval_index",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_rd2; kani: h_read",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-5": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Proof stability: a published proof never changes",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist, lemma_hist; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "SH-7": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "View mapping: get_approval(s) with proof_revocations, get_approvals defaults (0, 50); get_request None past #R else every field of R[i] plus request_status; get_rejection; get_revocation = V(g); get_principal None if unregistered else account, role, registration_id, pending; get_owner; counts",
+   "assumptions": [],
+   "harness": "near-tests/tests/shell.rs sh7_*; store_diff.rs check_views every step",
+   "cross": [
+    "difftest"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "SH-8": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "JSON shape: README field names of every view and event payload (incl. revocation fields, RejectionView, KeyView, KeyRevokedView, BlockTimeView), U64 strings for *_ns, numbers for ids and heights, {} or null fields give defaults, whole-args null fails (wasm wrappers: sandbox), lossless conversions",
+   "assumptions": [],
+   "harness": "near-tests/tests/shell.rs sh8_json_shape (argument half: sandbox, M6)",
+   "cross": [
+    "sandbox"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "VER-1": {
+   "module": "deployment",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Accept proofs only from get_approval at final, or action_approved logs of successful receipts with executor_id = C in final blocks",
+   "assumptions": [
+    "ASM-FINAL",
+    "ASM-ATOMIC"
+   ],
+   "harness": "prolog/tests/test_verifier_rules.pl; sandbox/tests/runtime.rs::rt_spoof",
+   "cross": [
+    "sandbox"
+   ],
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "RD-2": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Exact page: approvals(f,l) = proofs of L[f..min(f saturating_add min(l,100), #L)], no drops",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: approvals ensures approvals_spec, lemma_rd2; kani: h_read",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RD-3": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Page arithmetic over any u64 (from, limit, count): no overflow; reads only approval_count, approved_request_id(j) in the page and request(id) for returned ids; no writes",
+   "assumptions": [
+    "ASM-TOOLS",
+    "ASM-IDENT"
+   ],
+   "harness": "h_page_arith, h_page_arith_empty",
+   "cross": [
+    "verus"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RD-4": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Client loop (stop on empty page or from >= count) enumerates the log exactly once, in order",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_rd4; plain: plain::client_enum",
+   "cross": [
+    "plain",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RES-3": {
+   "module": "contract_shell",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "get_approvals(0,100) over 100 max-size proofs stays under view gas and 4 MiB return; measured about 1.30 MB (1,299,658-1,299,659 B) and about 88.3-88.4 TGas as a transaction (near-sandbox 2.13.4)",
+   "assumptions": [
+    "ASM-LIMITS"
+   ],
+   "harness": "sandbox/tests/shell.rs::res3_full_page_of_max_proofs",
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "VER-5": {
+   "module": "deployment",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Enumerate with the RD-4 loop at one block_id",
+   "assumptions": [],
+   "harness": "prolog/tests/test_verifier_rules.pl",
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "INV-8": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Registration provenance: R[i].ak = k and i >= P(k).active_from => R[i].aa = P(k).account, role Agent and R[i].agent_registration_id = P(k).registration_id",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_kr), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RT-SELFACCT": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "A contract on the signer's own account calling C succeeds (documents F-9)",
+   "assumptions": [
+    "ASM-PRED"
+   ],
+   "harness": "sandbox/tests/runtime.rs::rt_selfacct",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "RT-METATX": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "NEP-366 delegate action outcome recorded: IndirectCall on C for both an agent function-call key and a full-access agent key (results/RT-METATX.json)",
+   "assumptions": [
+    "ASM-META"
+   ],
+   "harness": "sandbox/tests/runtime.rs::rt_metatx",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "RT-FCKEY": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Agent FC key scoped to request_action cannot call approve or add_agent: InvalidAccessKeyError(MethodNameMismatch), not a contract panic",
+   "assumptions": [
+    "ASM-FCKEY"
+   ],
+   "harness": "sandbox/tests/runtime.rs::rt_fckey",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "DEP-1": {
+   "module": "deployment",
+   "layer": "deploy-check",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Code hash = reproducible build, not a global contract referenced by account id; locked at deploy (deploy + new + full-access key deletion in one tx); owner is multisig/DAO; registered keys (rebuilt from an indexer) are FC keys scoped to C ([request_action]; [approve] or [approve, reject]) with finite allowance; balance buffer. Demonstrated on near-sandbox only: no testnet deployment",
+   "assumptions": [
+    "ASM-DEPLOY",
+    "ASM-OWNER"
+   ],
+   "harness": "deploy-checks/check_deployment.py; sandbox/tests/deploy.rs::dep1_check_deployment_in_sandbox",
+   "depends_on": [
+    "README.md",
+    "contract/src/lib.rs"
+   ]
+  },
+  "VER-8": {
+   "module": "deployment",
+   "layer": "deploy-check",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Per proof: archival view_access_key for the agent key at the request block and the approver key at the approval block both show a function-call permission with receiver C and the DEP-1 method names (closes F-9)",
+   "assumptions": [
+    "ASM-FCKEY",
+    "ASM-PRED"
+   ],
+   "harness": "deploy-checks/check_deployment.py; prolog/tests/test_verifier_rules.pl; sandbox/tests/deploy.rs::dep1_check_deployment_in_sandbox",
+   "cross": [
+    "prolog"
+   ],
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "TX-1": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "add_principal: Ok(principal) <=> caller = owner, key unregistered and G != MAXU; errors NotOwner, KeyAlreadyRegistered, LogFull; P' = P[k -> (acct, role, G, #R, 0)], G' = G + 1",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: add_principal ensures refines(add_spec); kani: h_step_add, h_raw_add",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TX-2": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "revoke_key: Ok(P(k)) <=> caller = owner and key registered; errors NotOwner, KeyNotRegistered; P' = P minus k, V' = V[P(k).reg -> t]",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: revoke_key ensures refines(revoke_spec); kani: h_step_revoke",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TX-6": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Owner never changes; owner checks compare the caller account passed by the shell (predecessor: SH-1)",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "h_step_*",
+   "cross": [
+    "review",
+    "verus"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-6": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Registry discipline: owner fixed; P changes only by owner Add/Revoke or the pending field on request/approve/reject",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist, lemma_hist; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-7": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Owner operations never change requests or the log, and reject never changes the log, from any state",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "h_raw_add, h_raw_revoke, h_raw_reject",
+   "cross": [
+    "verus"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-0": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Registry is a function: one registration and role per key (MemStore has no duplicate keys)",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (principals is a Map; MemStore wf distinct_keys); kani: h_store_laws_mem_law_insert, h_store_laws_mem_law_remove, h_store_laws_arr, h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "C-1": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Authority matrix: one authority per change method; owner/agent/approver method sets disjoint; no key can both request and approve",
+   "assumptions": [],
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "HIST-2": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Decisions immutable once recorded: approvals and rejections",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist (grows), lemma_hist, lemma_run_grows; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TR-2": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Each request decided (approved or rejected) at most once in any trace",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_tr2; kani: h_step_approve, h_step_reject, h_bmc_from_init",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TLA-SAFE": {
+   "module": "tla_model",
+   "layer": "tla",
+   "evidence": "model-check",
+   "status": "in-progress",
+   "description": "TLC: Inv (INV-3..9, INV-11..16, LEM-1/2, TR-1 provenance, RidLive, Approvable) in every reachable state and StepProperty (HIST-1/2/3/7/8/9/10, TR-2, TR-3) on every step, any interleaving of all calls by all parties",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-TLA-SCOPE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "MC_Safety",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TLA-IND": {
+   "module": "tla_model",
+   "layer": "tla",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Apalache: Init => Inv, and Inv /\\ Next => Inv' /\\ StepProps from any state with <= 3 requests, integers unbounded, MaxPending scaled to 2: Inv and the step properties hold at every depth",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-TLA-SCOPE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "MC_Apalache",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-IND": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: Init => Inv and Inv /\\ Next => Inv' (TypeOK, INV-2..9, INV-11..16, INV-5r, LEM-1/2, TR-1 provenance, RidLive, Approvable) for states of every size, every MaxPending, any key, account and payload types; so Inv holds in every reachable state. TLA-IND without its bound of 3",
+   "assumptions": [
+    "ASM-LEAN-TLA",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "inv_init, inv_next, reach_inv",
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-STEP": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: every call from an Inv state, successful or not, satisfies StepProps (HIST-1/2/3/7/8/9/10), at every size",
+   "assumptions": [
+    "ASM-LEAN-TLA",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "stepProps_next, stepProps_step",
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-TR": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: over every run of any length from a reachable state, a decision is final (TR-2), Void is terminal across revoke and re-add (TR-3), request content, the log prefix, the registration counter and the revocation set only grow; every decided request has TR-1 provenance",
+   "assumptions": [
+    "ASM-LEAN-TLA",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "tr1_provenance, tr2_decision_final, tr3_void_terminal, hist1_run, hist3_run, hist10_run",
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TR-3": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Durable revocation: a request whose agent registration is revoked while pending is never approved, even after re-registration",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_tr3, witness_trace; kani: h_step_*, h_bmc_from_init_witness",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-8": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Void is terminal",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist, lemma_hist, lemma_run_void; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEM-4": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Under INV-8, liveness reduces to active_from <= id; role/account checks are redundant (F-14, the 2 equivalent mutants)",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_live_reduces; kani: h_read",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RD-7": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "request_status = Approved / Rejected / Pending (live) / Void; None for unknown ids",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: request_status ensures, lemma_rd7; kani: h_read",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-11": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Live registration ids are issued (< G), pairwise distinct and not revoked",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-12": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Revoked registration ids are issued (< G) and each is revoked once (insert_revocation's write-once law holds)",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-14": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Recorded registration ids (request agent, approver, rejecter) are issued (< G)",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_req), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-15": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Registration accounting: #P + #V = G, so with INV-11/12 every issued registration is exactly one of live or revoked",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv, lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-16": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Registration binding: a live registration id recorded on a request or decision belongs to the key, account and role it was recorded with",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_kr), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-10": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Registrations and revocations: G grows by 1 exactly on a successful Add, V gains one entry exactly on a successful Revoke, and a recorded revocation never changes",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist, lemma_hist; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TR-7": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Revocation record: V lists exactly the successful Revokes, in order, each with the registration id it removed (as issued, fresh, by Add) and its time",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_tr7 (runs from init); kani: h_init, h_step_*, h_bmc_from_init",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RD-8": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "proof_revocations(proof) = (V(agent registration), V(approver registration)); under Inv each is None exactly when that registration is still the key's current one",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: proof_revocations ensures, lemma_rd8; kani: h_read",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-1": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Dense request ids: R[i].id = i",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv, lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-3": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Log -> request: L[j] < #R and R[L[j]] approved with index j",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_log), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-4": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Request -> log: approved R[i] has index < #L and L[index] = i",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_req), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-7": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Registration bound: P(k).active_from <= #R",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_key), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEM-1": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Approval log has no duplicates",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_log_distinct; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEM-2": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "#L = number of approved requests <= #R",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv, lemma_log_room; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-3": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Approval log append-only",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist (grows), lemma_hist, lemma_run_grows; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-4": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "#R grows by 1 exactly on a successful request, #L by 1 exactly on a successful approval; otherwise unchanged",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist, lemma_hist; kani: h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-2": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Stored actions are 1..=2048 bytes",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-STRLEN"
+   ],
+   "harness": "verus: full_inv (inv_req), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-9": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Pending count: P(k).pending equals undecided (neither approved nor rejected) requests of k under its registration, <= 16 (0 for approvers); the cap bound is stepped in h_raw_request",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_key), lemma_full_inv, lemma_approver_pending; kani: h_step_*, h_raw_request",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "ROB-3": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Action length boundaries in bytes: 0, 1 (a space), 2048, 2049 and a multi-byte 2050",
+   "assumptions": [
+    "ASM-TOOLS",
+    "ASM-IDENT"
+   ],
+   "harness": "h_action_len",
+   "cross": [
+    "plain"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TR-6": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Agent storage bound as a potential: Phi = sum over agent keys of (16 - pending) >= 0 drops by 1 per successful request and rises only on a successful approval or rejection or agent Add",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_tr6 (per key); kani: h_step_*, h_raw_request",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RES-1": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Storage growth per op (add, revoke, request, approve, reject) computed from the Borsh layout and equal to VMLogic's metering at the worst case; measured on-chain (sandbox); 16 x B_req = 0.364 NEAR per agent key without an approver (ed25519/secp256k1; ML-DSA-65 keys are refused, SH-13)",
+   "assumptions": [
+    "ASM-STAKE"
+   ],
+   "harness": "near-tests/tests/shell.rs res1_storage_growth_bounds",
+   "cross": [
+    "sandbox"
+   ],
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "RES-2": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Worst-case approval_requested, action_approved and action_rejected lines (2048 escaped control bytes, 64-char accounts, ed25519/secp256k1 keys, max u64s) fit 16384 B: 13197 B (F-4). ML-DSA-65 keys, which would reach 18256 B on both sides (F-17), cannot be registered (SH-13)",
+   "assumptions": [
+    "ASM-LIMITS"
+   ],
+   "harness": "near-tests/tests/shell.rs res2_worst_case_event_lines_fit_16384_bytes, f17_mldsa65_keys_are_refused",
+   "cross": [
+    "sandbox"
+   ],
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "SH-13": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "add_agent and add_approver refuse ML-DSA-65 keys (F-17): after the owner check (non-owners get NotOwner) and before the core's guards (LogFull), with exactly UNSUPPORTED_KEY_TYPE and no log; so every registered key is ed25519 or secp256k1, the key types RES-1 and RES-2 bound",
+   "assumptions": [
+    "ASM-LIMITS"
+   ],
+   "harness": "near-tests/tests/shell.rs f17_mldsa65_keys_are_refused; sandbox/tests/shell.rs sh13_mldsa65_key_refused",
+   "cross": [
+    "sandbox"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs"
+   ]
+  },
+  "TLA-LIVE-1": {
+   "module": "tla_model",
+   "layer": "tla",
+   "evidence": "model-check",
+   "status": "in-progress",
+   "description": "Under weak fairness of approvers, a request whose eligible approver eventually always exists never stays pending (ends approved, rejected or void); fails without fairness (non-vacuity). MC_Liveness_SF: under strong fairness an eligible approver infinitely often is enough (TLA-LIVE-1s)",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-TLA-SCOPE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "MC_Liveness",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TLA-LIVE-2": {
+   "module": "tla_model",
+   "layer": "tla",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Approvable: every Approver key of another account can approve or reject a pending request (no accepted request is stuck in the core)",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-TLA-SCOPE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "MC_Apalache, MC_Safety",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-LIVE": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: TLA-LIVE-1 for every behaviour at every size (any key, account and payload types, any MaxPending, any number of requests and registrations, any step relation, so both Next and MC_Liveness's BNext); TLA-LIVE-1s under strong fairness; a concrete unfair behaviour violates Live1 and a fair one satisfies its premise. TLA-LIVE-1 without TLC's bounds",
+   "assumptions": [
+    "ASM-LEAN-TLA",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "live1, live1_sf, live1_of_live1Inf, unfair_violates, fair_witness (Liveness.lean, LivenessWitness.lean)",
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "SH-11": {
+   "module": "contract_shell",
+   "layer": "wasm-check",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Function exports exactly the 16 #[near] methods + contract_source_metadata + __contract_abi (embedded by cargo-near); the only non-function export is memory; no Store, upgrade or owner-transfer export",
+   "assumptions": [
+    "ASM-SDK"
+   ],
+   "harness": "tools/scripts/wasm-surface.sh vs wasm-surface.expected (cargo near build non-reproducible-wasm)",
+   "cross": [
+    "sandbox"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "SH-12": {
+   "module": "contract_shell",
+   "layer": "wasm-check",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "No promise_*, deploy, delete, add-key, global-contract or transfer imports (exact import set in wasm-surface.expected); only ST-5 storage keys written",
+   "assumptions": [],
+   "harness": "tools/scripts/wasm-surface.sh (forbidden-import check, exact import set); store_diff.rs (storage keys)",
+   "cross": [
+    "review",
+    "difftest"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "C-6": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Generated API surface equals the requirements API table: #[near] wasm exports = method/3 names, other exports only near-sdk's (contract_source_metadata, __contract_abi), ABI kind and modifiers match each method's kind and authority",
+   "assumptions": [],
+   "harness": "consistency.pl c_check('C-6') over extracted/api_facts.pl (tools/scripts/wasm-surface.sh)",
+   "cross": [
+    "wasm-check"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "TX-0": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Atomic failure: Err => state unchanged; no Store mutator on failure except remove_principal of an absent key (F-6, no-op)",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: refines (every mutator's ensures); kani: h_step_*, h_raw_*",
+   "cross": [
+    "kani",
+    "plain"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "ROB-1": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "No panics, overflows or OOB indexing for any arguments and any MemStore within the bounds (beyond: ASM-MODEL), including non-Inv states",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_raw_*",
+   "cross": [
+    "verus"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "ROB-2": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "LogFull guards: count = MAXU with all earlier guards passing => Err(LogFull), no writes, before the shell's += 1 (which would panic under overflow-checks); approve's case needs a non-Inv state",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_proto_request, h_proto_approve",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "ROB-4": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Bounded work: <= 4 Store reads and <= 3 writes per mutator; approvals <= 2*min(l,100)+1 reads",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_count_*, h_page_arith",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "ST-1": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Store laws for MemStore and Sparse (map/sequence semantics; removing an absent key is a no-op)",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_store_laws_mem_law_*, h_store_laws_sparse, h_store_laws_sparse_reg, h_store_laws_arr",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "ST-2": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Store protocol: exact mutator call sequence per op; makes contract-store differences from MemStore unreachable",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "h_proto_*, h_refine_*",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "ST-3": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Sparse (transliteration of the contract Store impl) refines ArrStore under Kani (h_refine_*) and MemStore in plain mode; ST-1 laws tie ArrStore and MemStore to the same observations",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_refine_*",
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs"
+   ]
+  },
+  "ST-4": {
+   "module": "contract_store",
+   "layer": "difftest",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Real ApprovalContract store (public methods, mocked runtime) refines MemStore over 10k x 50 random ops, persisted and reloaded every step: equal results and alpha after every step",
+   "assumptions": [
+    "ASM-STORE",
+    "ASM-SDK"
+   ],
+   "harness": "near-tests/tests/store_diff.rs store_refines_memstore_with_reload_every_step",
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "ST-5": {
+   "module": "contract_store",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Storage prefixes p/r/a/v pairwise distinct, prefix-free and distinct from STATE; after every random step the keys are exactly STATE and prefix ++ borsh(key) for the entries alpha lists",
+   "assumptions": [
+    "ASM-STORE"
+   ],
+   "harness": "near-tests/tests/shell.rs st5_prefixes_distinct_and_state_roundtrips; store_diff.rs (exact key set every step)",
+   "cross": [
+    "review",
+    "difftest"
+   ],
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "ST-6": {
+   "module": "contract_store",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Golden Borsh bytes (key, value) for STATE and one entry of each map: ed25519 and secp256k1 principals; pending, approved, rejected requests; log entry; revocation. Layout changes flagged storage-breaking",
+   "assumptions": [
+    "ASM-STORE"
+   ],
+   "harness": "near-tests/tests/shell.rs st6_golden_borsh_bytes (tests/golden/layout.txt)",
+   "depends_on": [
+    "core/src/lib.rs",
+    "core/Cargo.toml",
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "ST-7": {
+   "module": "contract_store",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Identity equality: == on near-sdk AccountId and PublicKey equals Borsh-byte equality, is reflexive and symmetric, and survives clone and a Borsh round trip (edge identities and 200k random pairs); the checked half of ASM-IDENT",
+   "assumptions": [],
+   "harness": "near-tests/tests/ident.rs",
+   "depends_on": [
+    "Cargo.lock"
+   ]
+  },
+  "ST-8": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Store protocol at any store size (K-ORACLE): on a Sparse holding the step's footprint at any keys and positions, with every field and counter free, approve and reject return exactly expect() and make exactly the protocol() calls, with accounts from 8 values (ST-8W, src::Wide: every footprint maps injectively); add, revoke and request read no request, so h_proto_* already covers them at every size",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_oracle_approve, h_oracle_reject (with h_proto_add/revoke/request)",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "SH-2": {
+   "module": "contract_shell",
+   "layer": "difftest",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Exactly one core transition per change call and no other writes",
+   "assumptions": [],
+   "harness": "near-tests/tests/store_diff.rs (alpha and the exact storage key set after every call)",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "SH-3": {
+   "module": "contract_shell",
+   "layer": "unit",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Core Err(e) panics with exactly e.as_str() (catch_unwind; payload HostError(GuestPanic { panic_msg })) and logs nothing; all 17 errors incl. the three LogFull guards",
+   "assumptions": [],
+   "harness": "near-tests/tests/shell.rs sh3_*; store_diff.rs",
+   "cross": [
+    "sandbox",
+    "difftest"
+   ],
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "RD-6": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Core reads are pure (Window store panics on writes); every get_* takes &self",
+   "assumptions": [
+    "ASM-TOOLS",
+    "ASM-IDENT"
+   ],
+   "harness": "h_page_arith, h_page_arith_empty",
+   "cross": [
+    "review"
+   ],
+   "depends_on": [
+    "core/src/lib.rs",
+    "contract/src/lib.rs"
+   ]
+  },
+  "LEM-3": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "An unapproved request exists => #L < #R <= MAXU, so approve's LogFull is unreachable (F-7)",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: lemma_log_room; kani: h_step_approve",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-DELTA": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: on every concrete store of every size whose request ids equal their positions and whose counters are below u64::MAX, the transcribed expect error is the model's err and running the transcribed protocol calls lands on the model's step, up to map equality of principals and set equality of revocations",
+   "assumptions": [
+    "ASM-LEAN-TLA",
+    "ASM-TOOLS"
+   ],
+   "harness": "delta_refines (Delta.lean)",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LINK": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-check",
+   "status": "in-progress",
+   "description": "ghost::expect / ghost::protocol (Rust) equal the Lean cstep on the representative view of every class (14,310 views, Lean's allCls.map rep exactly, as a set); the real core on a Sparse holding each view agrees too",
+   "assumptions": [
+    "ASM-NU",
+    "ASM-TOOLS"
+   ],
+   "harness": "run-lean.sh link (kani link::link_cases, approval-lean link)",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-COVER": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: for every footprint view of every concrete store (any identity types, any Nat counters, request at i has id i and a pay action), cls v is in allCls and cstep v op = (sub v op).out (cstep (rep (cls v op))): every view steps like its LINK representative, transported back",
+   "assumptions": [
+    "ASM-NU",
+    "ASM-TOOLS"
+   ],
+   "harness": "Ident.cover, Ident.cls_mem, Ident.wfv_of_store (Ident.lean)",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-FRAME": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: cstep depends only on the footprint (owner, call key's principal, request at the id, its key's principal, decision ids, counters): stores agreeing there step the same",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "Ident.frame (Ident.lean)",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-REN": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: cstep commutes with renaming accounts, keys and payloads, for any renaming injective on the footprint",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "Ident.rename (Ident.lean)",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "K-LINK-T": {
+   "module": "lean_model",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Rust side of LEAN-COVER: on a symbolic footprint view (any u8 accounts and keys, free u64/u32 counters and times), ghost::expect / ghost::protocol on the view equal the transported result of the same functions on its representative",
+   "assumptions": [
+    "ASM-NU",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_link_t_add, h_link_t_revoke, h_link_t_request(_empty, _long), h_link_t_approve_part_{err,c0,c1_ids,c1_act_v,c1_act_s,c1_appr,c1_rej,c2,c3}, plain h_link_t (keeps_action_all), h_link_t_approve(_empty, _long), h_link_t_reject",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-10": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Time order (non-decreasing time inputs): approved_at and rejected_at >= requested_at component-wise",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-TIME"
+   ],
+   "harness": "verus: inv10, lemma_timed; kani: h_init, h_step_*",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "TR-4": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Approval times non-decreasing along the log",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC",
+    "ASM-TIME"
+   ],
+   "harness": "verus: tr4, lemma_timed; kani: h_step_approve",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "RT-TIME": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Stored request/approval/rejection times equal the block their receipt ran in; heights strictly increase and timestamps never decrease across receipts on C",
+   "assumptions": [
+    "ASM-TIME"
+   ],
+   "harness": "sandbox/tests/runtime.rs::rt_time",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "RT-CODEHASH": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Wasm under test is the reproducible build; record sha256 (hex) and NEAR code_hash (base58)",
+   "assumptions": [
+    "ASM-DEPLOY",
+    "ASM-COMPILE"
+   ],
+   "harness": "sandbox/tests/runtime.rs::rt_codehash",
+   "depends_on": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "contract/Cargo.toml",
+    "core/Cargo.toml",
+    "core/src/lib.rs",
+    "contract/src/lib.rs"
+   ]
+  },
+  "RT-RESET": {
+   "module": "runtime_assumptions",
+   "layer": "sandbox",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Delete + recreate C resets counters; VER-3 detects it (VER-6 only heuristically)",
+   "assumptions": [
+    "ASM-CODE"
+   ],
+   "harness": "sandbox/tests/deploy.rs::rt_reset",
+   "depends_on": [
+    "contract/src/lib.rs",
+    "Cargo.lock"
+   ]
+  },
+  "VER-2": {
+   "module": "deployment",
+   "layer": "deploy-check",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "code_hash(C) = expected at the proof's block (archival) and now",
+   "assumptions": [
+    "ASM-CODE"
+   ],
+   "harness": "deploy-checks/check_deployment.py; sandbox/tests/deploy.rs::dep1_check_deployment_in_sandbox",
+   "cross": [
+    "prolog"
+   ],
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "VER-3": {
+   "module": "deployment",
+   "layer": "deploy-check",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "No full-access key on C since b0, or an indexer scan finds no DeployContract/UseGlobalContract/AddKey/DeleteAccount",
+   "assumptions": [
+    "ASM-CODE"
+   ],
+   "harness": "deploy-checks/check_deployment.py; sandbox/tests/deploy.rs::dep1_check_deployment_in_sandbox",
+   "cross": [
+    "prolog",
+    "sandbox"
+   ],
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "VER-6": {
+   "module": "deployment",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Counter decrease or code-hash change invalidates cached proofs",
+   "assumptions": [],
+   "harness": "prolog/tests/test_verifier_rules.pl; sandbox/tests/deploy.rs::rt_reset",
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "TR-5": {
+   "module": "core_state_machine",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Non-vacuity: approved, rejected and void states reachable; every error reachable (approve LogFull only from a non-Inv Sparse state, h_proto_approve); request LogFull only at #R = MAXU",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "h_step_*, h_raw_request, h_action_len, h_proto_request, h_proto_approve, h_bmc_from_init",
+   "cross": [
+    "verus",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "MC-1": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "model-check",
+   "status": "verified-with-assumptions",
+   "description": "Bounded model check of reference step/4 at depth 6 with real constants: no INV, separation-of-duties, double-approval, pending-count or revival violation; reaches approved and void states and every error except both LogFull and TooManyPending; MC-1s (max_pending=2, max_u=2) also reaches TooManyPending and request LogFull; state counts >= mc1_state_floor",
+   "assumptions": [
+    "ASM-SPEC"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "MC-2": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Generated traces replayed on the real core, on spec.rs and (RT-TRACE) on the wasm; all agree",
+   "assumptions": [
+    "ASM-SPEC"
+   ],
+   "cross": [
+    "plain",
+    "sandbox"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "C-2": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Guard table: every ApprovalError produced by >=1 guard; specified precedence equals generated code_precedence/2",
+   "assumptions": [],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "C-3": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Error messages pairwise distinct and substring-free",
+   "assumptions": [],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "C-5": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Generated constants equal requirement constants; DEFAULT_PAGE_SIZE <= MAX_PAGE_SIZE; MAX_PENDING_PER_KEY >= 1; MAX_ACTION_LEN within RES-2 bound",
+   "assumptions": [],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "C-7": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Traceability both ways: every requirement has >=1 property; every property traces to a requirement or threat",
+   "assumptions": [],
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "C-8": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Every threat has mitigated_by or accepted_risk",
+   "assumptions": []
+  },
+  "C-9": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Property and assumption IDs in status.toml equal those in traceability.pl",
+   "assumptions": []
+  },
+  "C-10": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Warn when a verified* property depends on an assumption with level below high whose check has not passed",
+   "assumptions": []
+  },
+  "TLA-WIT": {
+   "module": "tla_model",
+   "layer": "tla",
+   "evidence": "model-check",
+   "status": "in-progress",
+   "description": "Non-vacuity: approved, rejected, void, revival-attempt and pending-cap states are reachable in TLC; IndInit holds full states with approved, rejected and void requests and a revocation",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "MC_Safety, MC_Apalache",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "REF-1": {
+   "module": "tla_model",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Guard exactness (A1): the core's error equals the TLA+ error operator on alpha(pre); Ok exactly when the TLA+ action is enabled",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_ref_*",
+   "cross": [
+    "plain"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "REF-2": {
+   "module": "tla_model",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Effect exactness (A2): on Ok, alpha(post) is the TLA+ action's post-state",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_ref_*",
+   "cross": [
+    "plain"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "REF-3": {
+   "module": "tla_model",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Rejected calls stutter (A3): on Err, alpha(post) = alpha(pre)",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_ref_*",
+   "cross": [
+    "plain"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "REF-4": {
+   "module": "tla_model",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Time irrelevance (A7): tla.rs reads no BlockTime, so REF-1/2 hold for every block time; payload classes (A5) via h_ref_toolong",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_ref_*",
+   "cross": [
+    "review"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "REF-5": {
+   "module": "tla_model",
+   "layer": "plain",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "Trace validation: 60 x 80-call core traces equal tla.rs on every step, and TLC accepts each as a behaviour of ApprovalCore.tla (>= 5 revival attempts, >= 20 rejections and revocations)",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "trace::tests::ref5_traces, TraceCheck",
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "C-2t": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "verified",
+   "description": "Guard table across models: TLA+ GuardOrder = guard/4 order = code_precedence/2",
+   "assumptions": [],
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "MC-3": {
+   "module": "requirements",
+   "layer": "prolog",
+   "evidence": "model-check",
+   "status": "verified-with-assumptions",
+   "description": "Graph equivalence: Prolog step/4 and TLC export the full labelled reachable graph of one small universe; state and edge sets are equal",
+   "assumptions": [
+    "ASM-SPEC",
+    "ASM-TOOLS"
+   ],
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "CUT-1": {
+   "module": "tla_model",
+   "layer": "kani",
+   "evidence": "bounded-proof",
+   "status": "in-progress",
+   "description": "Footprint (kani/CUTOFF.md): each call reads and writes at most the keys, request positions, log slots and revocation records of its row; tracking is transparent",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL",
+    "ASM-TOOLS"
+   ],
+   "harness": "h_cut_*",
+   "cross": [
+    "plain"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "CUT-2": {
+   "module": "tla_model",
+   "layer": "review",
+   "evidence": "review",
+   "status": "in-progress",
+   "description": "Cutoff: given CUT-1, harness state bounds (CAP_P, CAP_R, CAP_V) are sufficient for REF-1..3 at every size, except E1 (pending at MAXP) and E2 (counters at u64::MAX), which raw and Sparse harnesses cover, including request/approve LogFull (h_proto_request, h_proto_approve)",
+   "assumptions": [
+    "ASM-IDENT",
+    "ASM-MODEL"
+   ],
+   "harness": "kani/CUTOFF.md",
+   "cross": [
+    "kani"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "U-1": {
+   "module": "tla_model",
+   "layer": "review",
+   "evidence": "review",
+   "status": "in-progress",
+   "description": "Every loop in every harness's goto program has a bound derived from a constant, and no reachable loop needs more than its harness unwind",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "tools/scripts/kani-loops.py",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-GUARD": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Lean: each error operator returns the first failing guard of a list whose codes are TLA+'s GuardOrder (equal to tla_facts.pl, C-2t); LogFull is never returned (A6)",
+   "assumptions": [
+    "ASM-LEAN-TLA",
+    "ASM-TOOLS"
+   ],
+   "harness": "err_eq_firstFail, guards_order, err_mem_guardOrder, err_ne_logFull; run-lean.sh guards",
+   "cross": [
+    "tla",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "LEAN-WIT": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-proof",
+   "status": "in-progress",
+   "description": "Non-vacuity: reachable states with an approved, a rejected, a void and a revoked-re-added-still-void request and a key at the pending cap, checked by evaluation",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "Witness.lean",
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "REF-5L": {
+   "module": "lean_model",
+   "layer": "plain",
+   "evidence": "test",
+   "status": "in-progress",
+   "description": "The real core's MC-2 traces (2000 x 120 calls) replayed on the Lean machine: every result and post-store equal",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "run-lean.sh replay (approval-lean replay)",
+   "cross": [
+    "lean"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "MC-4": {
+   "module": "lean_model",
+   "layer": "lean",
+   "evidence": "model-check",
+   "status": "verified-with-assumptions",
+   "description": "Graph equivalence: the Lean machine and TLC export the full labelled reachable graph of the MC_Graph universe; stores, rejected calls and edges are equal (with MC-3: Prolog = TLC = Lean)",
+   "assumptions": [
+    "ASM-TOOLS"
+   ],
+   "harness": "run-lean.sh graph (approval-lean graph, mc3.py)",
+   "cross": [
+    "tla"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "VER-4": {
+   "module": "deployment",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Check action and both accounts against expectations; approver against the verifier's own allowlist",
+   "assumptions": [
+    "ASM-OWNER"
+   ],
+   "harness": "prolog/tests/test_verifier_rules.pl",
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "VER-7": {
+   "module": "deployment",
+   "layer": "prolog",
+   "evidence": "check",
+   "status": "in-progress",
+   "description": "Executors deduplicate on (C, request_id) and enforce a maximum approval age",
+   "assumptions": [],
+   "harness": "prolog/tests/test_verifier_rules.pl",
+   "depends_on": [
+    "README.md"
+   ]
+  },
+  "TX-7": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "reject: exact result, error order (auth, RequestNotFound, AlreadyApproved, AlreadyRejected, AgentRevoked, SelfApproval), rejection recorded with the approver's registration id, agent key pend-1, log unchanged; Ok(R'[i])",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: reject ensures refines(reject_spec); kani: h_step_reject, h_raw_reject",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "HIST-9": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "Rejected is terminal",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: hist, lemma_hist; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  },
+  "INV-13": {
+   "module": "core_state_machine",
+   "layer": "verus",
+   "evidence": "proof",
+   "status": "in-progress",
+   "description": "At most one decision per request: never both approved and rejected",
+   "assumptions": [
+    "ASM-DERIVE",
+    "ASM-IDTYPE",
+    "ASM-STORE",
+    "ASM-TOOLS",
+    "ASM-SPEC"
+   ],
+   "harness": "verus: full_inv (inv_req), lemma_full_inv; kani: h_step_*",
+   "cross": [
+    "kani",
+    "prolog"
+   ],
+   "depends_on": [
+    "core/src/lib.rs"
+   ]
+  }
+ },
+ "assumptions": {
+  "ASM-DERIVE": {
+   "statement": "(M5 only) #[derive(Clone)] clones field-wise and #[derive(PartialEq)] on Role compares variants; the twin declares these for the core's data types (verus/TRUSTED.toml), which stay outside verus! so their derives are untouched",
+   "level": "high",
+   "status": "unverified",
+   "checked_by": []
+  },
+  "ASM-IDTYPE": {
+   "statement": "(M5 only) On near_sdk::AccountId and near_sdk::PublicKey, == is structural equality and clone returns an equal value (the eq_laws / clone_laws hypotheses every Verus core function requires); the equivalence half of ASM-IDENT without its parametricity half",
+   "level": "high",
+   "status": "in-progress",
+   "checked_by": [
+    "ST-7"
+   ]
+  },
+  "ASM-STORE": {
+   "statement": "store::LookupMap is a map keyed prefix ++ borsh(key); writes flushed when the contract struct drops after state_write. For M5 path A: the contract crate's Store impl meets the Store trait's Verus contract (verified for MemStore; tested, not proved, for the NEAR store)",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "ST-4",
+    "ST-5",
+    "ST-6"
+   ]
+  },
+  "ASM-TOOLS": {
+   "statement": "Kani (unwinding assertions on), Verus+Z3, scryer-prolog, TLC, Apalache and the Lean 4 kernel are sound at the pinned versions",
+   "level": "n/a",
+   "status": "unverified",
+   "checked_by": []
+  },
+  "ASM-SPEC": {
+   "statement": "spec.rs, the Verus specs and the Prolog requirements state the intended behaviour; signed off by a human who did not write approval-core",
+   "level": "n/a",
+   "status": "unverified",
+   "checked_by": [
+    "C-7",
+    "MC-2"
+   ]
+  },
+  "ASM-STRLEN": {
+   "statement": "(M5 only) String::len is the UTF-8 byte length; is_empty <=> len == 0",
+   "level": "high",
+   "status": "unverified",
+   "checked_by": []
+  },
+  "ASM-SIGNER": {
+   "statement": "signer_account_pk() is the key whose signature over the originating tx was verified, an access key of signer_account_id(); signatures unforgeable",
+   "level": "high",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-KEY"
+   ]
+  },
+  "ASM-PRED": {
+   "statement": "predecessor_account_id() is unforgeable; equals the signer for the first receipt and when code on the signer's own account calls (F-9)",
+   "level": "high",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-RELAY",
+    "RT-SELFACCT"
+   ]
+  },
+  "ASM-ATOMIC": {
+   "statement": "Atomicity is per receipt: panic, out-of-gas or LackBalanceForState reverts all writes, including earlier actions batched in the same receipt; logs of a failed receipt may remain",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-REVERT",
+    "RT-BATCH"
+   ]
+  },
+  "ASM-COMPILE": {
+   "statement": "rustc/LLVM/wasm-opt preserve core semantics host -> wasm32; overflow-checks on in release; the only on-chain usize use is action.len() > MAX_ACTION_LEN; cfg(feature=\"borsh\") gates only use/derive",
+   "level": "n/a",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-CODEHASH",
+    "RT-TRACE"
+   ]
+  },
+  "ASM-SDK": {
+   "statement": "#[init] panics if state exists; #[private] requires predecessor = current account; non-payable change methods reject deposits; &self never writes; only #[near] impl methods exported; PanicOnDefault blocks default init",
+   "level": "high",
+   "status": "in-progress",
+   "checked_by": [
+    "SH-9",
+    "SH-10",
+    "SH-11"
+   ]
+  },
+  "ASM-FINAL": {
+   "statement": "State at finality 'final' is never reverted",
+   "level": "high",
+   "status": "unverified",
+   "checked_by": []
+  },
+  "ASM-IDENT": {
+   "statement": "PartialEq on AccountId/PublicKey is an equivalence matching Borsh-byte equality; the core uses A/K only via Clone and PartialEq (parametricity: a footprint maps injectively into the harness identities, ST-8W); harnesses use opaque newtypes so a new trait bound breaks the build. Which views LINK covers is no longer part of it (LEAN-COVER, K-LINK-T)",
+   "level": "high",
+   "status": "in-progress",
+   "checked_by": [
+    "ST-7",
+    "ST-8"
+   ]
+  },
+  "ASM-LIMITS": {
+   "statement": "max_total_log_length 16384 B; 100 logs; 4 MiB return data; 300 TGas per call; view gas cap per node",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "RES-2",
+    "RES-3"
+   ]
+  },
+  "ASM-META": {
+   "statement": "NEP-366 (and NEP-518 eth-implicit) inner receipts carry the relayer as signer, so relayed calls fail IndirectCall",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-METATX"
+   ]
+  },
+  "ASM-FCKEY": {
+   "statement": "Function-call keys restrict receiver and methods, cannot attach deposits, have an allowance, and cannot add keys",
+   "level": "high",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-FCKEY"
+   ]
+  },
+  "ASM-DEPLOY": {
+   "statement": "The deployed code is the reproducible build of the pin, locked at deploy",
+   "level": "policy",
+   "status": "in-progress",
+   "checked_by": [
+    "DEP-1",
+    "VER-2",
+    "VER-3"
+   ]
+  },
+  "ASM-OWNER": {
+   "statement": "The owner registers keys honestly (it could otherwise register two accounts it controls)",
+   "level": "policy",
+   "status": "unverified",
+   "checked_by": [
+    "DEP-1",
+    "VER-4"
+   ]
+  },
+  "ASM-MODEL": {
+   "statement": "Kani-layer properties only: a core step on a state larger than the Kani bound behaves like one within it (strategy section 6.3). Properties on the verus layer (M5 path A) are proved on the real core at every size and do not rely on it",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "MC-2",
+    "ST-8",
+    "LINK",
+    "LEAN-DELTA",
+    "LEAN-COVER",
+    "K-LINK-T"
+   ]
+  },
+  "ASM-TLA-SCOPE": {
+   "statement": "TLA+ model bounds (strategy section 17.3): behaviours with more requests, keys or accounts than TLC and Apalache explore add no new violations. Accounts and keys are covered by ASM-IDENT parametricity; the request bound is a small-scope assumption. It backs no every-size claim: LEAN-IND, LEAN-STEP and LEAN-TR prove the safety properties and LEAN-LIVE proves TLA-LIVE-1/1s at every size (strategy sections 18.3, 18.7). It remains only as the scope of the TLC and Apalache rows themselves",
+   "level": "med",
+   "status": "unverified",
+   "checked_by": [
+    "TLA-IND",
+    "REF-5",
+    "LEAN-IND",
+    "LEAN-LIVE"
+   ]
+  },
+  "ASM-LEAN-TLA": {
+   "statement": "The Lean machine (lean/ApprovalLean/Machine.lean, Props.lean) transcribes ApprovalCore.tla and ApprovalProps.tla, and Liveness.lean transcribes MC_Liveness.tla with TLA+'s temporal operators over behaviours Nat -> State (strategy sections 18, 18.7)",
+   "level": "high",
+   "status": "unverified",
+   "checked_by": [
+    "MC-4",
+    "REF-5L"
+   ]
+  },
+  "ASM-STAKE": {
+   "statement": "Account must hold storage_usage * 1e19 yocto; ~40 B overhead per record",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "RES-1"
+   ]
+  },
+  "ASM-NU": {
+   "statement": "The Rust (kani/src/norm.rs) and Lean (lean/ApprovalLean/Ident.lean) transcriptions of LINK's class, representative and transport functions agree (strategy section 18.6.1)",
+   "level": "high",
+   "status": "in-progress",
+   "checked_by": [
+    "LINK"
+   ]
+  },
+  "ASM-TIME": {
+   "statement": "block_height and block_timestamp never decrease across receipts on one account",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-TIME"
+   ]
+  },
+  "ASM-CODE": {
+   "statement": "Code changes only via DeployContract or UseGlobalContract on C (both need a full-access key on C), or via DeployGlobalContract by the owner of a NEP-591 global contract C references by account id; DeleteAccount erases state and a recreated account starts empty",
+   "level": "med",
+   "status": "in-progress",
+   "checked_by": [
+    "RT-RESET",
+    "DEP-1"
+   ]
+  }
+ },
+ "findings": {
+  "F-9": {
+   "finding": "`predecessor == signer` also admits code deployed on the signer's own account.",
+   "resolution": "DEP-1 requires registered keys to be function-call keys with receiver `C`. RT-SELFACCT."
+  },
+  "F-14": {
+   "finding": "Two equivalent mutants. In `live_agent_registration`, dropping the role check or the account check survives all tests: under INV-8 both are implied by `active_from ≤ id`. They are kept as defence in depth.",
+   "resolution": "LEM-4 proves the redundancy, so the equivalence is established and not merely assumed."
+  },
+  "F-4": {
+   "finding": "`MAX_ACTION_LEN` is coupled to the 16 KiB log limit. The worst-case `action_approved` line is about 13.0 KB (2048 control bytes escaped to `\\u00XX`, 64-char accounts, secp256k1 keys, max `u64`s). The limit breaks above about 2.6 KB. Upstream has a doc comment but no test.",
+   "resolution": "RES-2 unit test (OQ-4)"
+  },
+  "F-17": {
+   "finding": "near-sdk-core 4.2.3 (in the lockfile) accepts **ML-DSA-65** public keys (1952 bytes; nearcore 2.13, protocol 85). With ML-DSA-65 keys on both sides, the worst-case `action_approved` line is 18256 B, over the 16384 B limit: the core accepts the request, and that approver key can never approve it (the call fails with `TotalLogLengthExceeded`). One ML-DSA-65 key on either side still fits (≤ 15775 B), so another approver with a shorter key can. Storage per request also grows (`B_req` 4160 B; 16 pending = 0.666 NEAR). The README's worst case assumes secp256k1.",
+   "resolution": "**Fixed upstream** in trust-framework PR #19 (pin `081a3a6`, 2026-10-17): `add_agent`/`add_approver` refuse ML-DSA-65 keys after the owner check. Checked by SH-13 (`f17_mldsa65_keys_are_refused`). Supporting them later needs a shorter event or a lower action limit (README)."
+  },
+  "F-6": {
+   "finding": "`revoke_key` calls `remove_principal` before knowing the key exists. The core's \"no writes on `Err`\" holds only because removing an absent key is a no-op (L-REMOVE-ABSENT). On-chain the call panics before any flush, so nothing is written.",
+   "resolution": "ST-2 records it. Optionally reorder upstream (OQ-5)."
+  },
+  "F-7": {
+   "finding": "`approve`'s `LogFull` branch is unreachable under `Inv`: a pending request implies `#L < #R ≤ MAXU`.",
+   "resolution": "Kept as defence in depth. LEM-3."
+  }
+ }
+}

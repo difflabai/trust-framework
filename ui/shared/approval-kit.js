@@ -1,5 +1,6 @@
 /*
- * Shared pieces of the approval contract UIs (ui/approvals, ui/spec-approvals).
+ * Shared pieces of the approval contract UIs (ui/approvals, ui/spec-approvals,
+ * ui/spec-approvals-full).
  * A classic script: it defines window.ApprovalKit and nothing else. No build,
  * no dependencies. The wallet connector (NEAR Connect) is loaded by each page
  * with its own pinned <script integrity=...> tag; this file only uses
