@@ -35,6 +35,7 @@ this directory: the page loads `../shared/`. Use HTTP on localhost, not
 | `packet` | `requirements`, which loads `packets/requirements.json` |
 | `item` | the first requirement. Opens that requirement. |
 | `agent` | `agent1.<parent>` for `approvals.<parent>` (`data-agent`). A short name is expanded the same way. Only requests filed by this account count. |
+| `approver` | `approver1.<parent>` (`data-approver`). Only this account may sign. |
 | `contract`, `network`, `rpc`, `code_hash` | as in [`../approvals/`](../approvals/README.md) |
 
 The same agent can file this packet and the full packet. The page matches a
@@ -65,7 +66,8 @@ do not collide.
    `--force` is needed because a browser wallet signs with a full-access
    key. The reviewer's account must not be the agent account.
 
-3. The reviewer opens the page and connects their wallet. For each
+3. The reviewer opens the page and connects `approver1.<parent>`
+   (`approver1.difflabai.testnet` on the testnet demonstration). For each
    requirement they read the sentence and the properties that discharge it,
    tick each reading and check line, and then either approve or reject it.
    Approve stays disabled until every line is ticked. Reject needs a note

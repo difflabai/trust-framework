@@ -6,10 +6,11 @@
   <meta name="robots" content="noindex">
   <meta name="description" content="Review each item of the full spec review packet and sign approve or reject on the NEAR approval contract.">
   <title>Spec review (full)</title>
-  <link rel="stylesheet" href="../shared/base.css">
-  <link rel="stylesheet" href="../shared/spec.css">
+  <meta http-equiv="Cache-Control" content="no-cache">
+  <link rel="stylesheet" href="../shared/base.css?v=2">
+  <link rel="stylesheet" href="../shared/spec.css?v=2">
 </head>
-<body data-packet="near-approval" data-agent="agent1" data-packet-file="ui/spec-approvals-full/packets/near-approval.json">
+<body data-packet="near-approval" data-agent="agent1" data-approver="approver1" data-packet-file="ui/spec-approvals-full/packets/near-approval.json">
   <header>
     <h1 id="packet-title">Spec review (full)</h1>
     <p class="lede" id="packet-summary">Loading the packet…</p>
@@ -24,6 +25,7 @@
       <dt>Code</dt><dd id="meta-code">Checking…</dd>
       <dt>Owner</dt><dd id="meta-owner">Checking…</dd>
       <dt>Filed by</dt><dd id="meta-agent"></dd>
+      <dt>Approver</dt><dd id="meta-approver"></dd>
     </dl>
     <div class="row">
       <button type="button" id="connect" class="primary">Connect wallet</button>
@@ -72,6 +74,8 @@
         <input id="set-packet" name="packet" autocomplete="off" spellcheck="false" required>
         <label for="set-agent">Agent that files the items</label>
         <input id="set-agent" name="agent" autocomplete="off" spellcheck="false" required>
+        <label for="set-approver">Approver that signs</label>
+        <input id="set-approver" name="approver" autocomplete="off" spellcheck="false" required>
         <label for="set-contract">Contract account</label>
         <input id="set-contract" name="contract" autocomplete="off" spellcheck="false" required>
         <label for="set-network">Network</label>
@@ -94,8 +98,8 @@
     src="https://cdn.jsdelivr.net/gh/azbang/near-connect@de0f08af1e07c19fe5f80070383231d16ef924f6/cdn/hot-connect.iife.js"
     integrity="sha384-6eNPlV+Bf92wTtH7ZfZE8sZPdohJ84VDXuVVegFjBvJsGWE6BXTT1he2jKjalJ9L"
     crossorigin="anonymous"></script>
-  <script src="../shared/approval-kit.js"></script>
-  <script src="../shared/spec-kit.js"></script>
-  <script src="../shared/spec-app.js"></script>
+  <script src="../shared/approval-kit.js?v=2"></script>
+  <script src="../shared/spec-kit.js?v=2"></script>
+  <script src="../shared/spec-app.js?v=2"></script>
 </body>
 </html>

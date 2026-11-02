@@ -5,9 +5,10 @@
  * approver read the item's supporting material and sign approve or reject.
  *
  * The page sets the default packet on <body data-packet>, the repo-relative
- * manifest path on data-packet-file, the filing account on data-agent (a
- * short name is <name>.<parent> of approvals.<parent>), and data-group="prefix"
- * to group the list by item-id prefix.
+ * manifest path on data-packet-file, the filing account on data-agent, the
+ * account that may sign on data-approver (a short name is <name>.<parent> of
+ * approvals.<parent>), and data-group="prefix" to group the list by item-id
+ * prefix.
  *
  * Trust: the chain is the source of truth for what was filed and decided.
  * The packet file is checked against it: the page recomputes each item's
@@ -31,6 +32,7 @@
   var packetFile = (document.body.dataset.packetFile || "").trim();
   var packetId = (params.get("packet") || defaultPacket).trim();
   var agent = resolveAgent(cfg.contract, params.get("agent"));
+  var approver = resolveApprover(cfg.contract, params.get("approver"));
   var itemQuery = "";
   var GROUP_LABEL = {
     R: "Behaviour",
@@ -64,16 +66,30 @@
     return contract.indexOf("approvals.") === 0 ? contract.slice("approvals.".length) : contract;
   }
 
-  // data-agent or ?agent= may be a short name (agent1) or a full account id.
-  // A short name is <name>.<parent>, the same expansion submit-spec-packet.sh uses.
-  function resolveAgent(contract, raw) {
-    var name = (raw || document.body.dataset.agent || "agent1").trim().toLowerCase();
+  // data-agent / data-approver, or ?agent= / ?approver=, may be a short name
+  // (agent1) or a full account id. A short name is <name>.<parent>, the same
+  // expansion submit-spec-packet.sh uses.
+  function expandAccount(contract, raw) {
+    var name = (raw || "").trim().toLowerCase();
+    if (!name) return "";
     if (name.indexOf(".") === -1) name = name + "." + parentOf(contract);
     return name;
   }
 
+  function resolveAgent(contract, raw) {
+    return expandAccount(contract, raw || document.body.dataset.agent || "agent1");
+  }
+
+  function resolveApprover(contract, raw) {
+    return expandAccount(contract, raw || document.body.dataset.approver || "approver1");
+  }
+
   function defaultAgent(contract) {
-    return resolveAgent(contract, document.body.dataset.agent || "agent1");
+    return resolveAgent(contract, null);
+  }
+
+  function defaultApprover(contract) {
+    return resolveApprover(contract, null);
   }
 
   function setBanner(message, kind, link) {
@@ -168,6 +184,8 @@
   function renderContract() {
     $("meta-contract").replaceChildren(el("a", { href: api.explorerAccount(cfg.contract) }, [cfg.contract]), text(" (" + cfg.network + ")"));
     $("meta-agent").replaceChildren(el("code", {}, [agent]));
+    var approverNode = $("meta-approver");
+    if (approverNode) approverNode.replaceChildren(el("code", {}, [approver]));
     var code = $("meta-code");
     code.replaceChildren();
     if (!contractInfo) {
@@ -477,6 +495,9 @@
           (d.kind === "approved" ? "Approved" : "Rejected") + " by ", el("code", {}, [d.account || "unknown"]),
           text(" · " + K.formatNs(d.at) + (d.block != null ? " · block " + d.block : "") + (d.index != null ? " · approval " + d.index : ""))
         ]));
+        if (approver && d.account && d.account !== approver) {
+          chain.append(el("p", { class: "warn" }, ["This review is signed by " + approver + ", not " + d.account + "."]));
+        }
       }
       if (st.current.status === "void") chain.append(el("p", { class: "warn" }, ["The agent key that filed this request was revoked, so it can no longer be decided. Re-run submit-spec-packet.sh to file the item again."]));
     } else {
@@ -627,6 +648,11 @@
   function decisionBlock(entry, r) {
     if (!r) return "Nothing to decide until the item is filed.";
     if (r.status !== "pending") return "Request " + r.request_id + " is " + r.status + ".";
+    if (approver && (!session || session.accountId !== approver)) {
+      return session
+        ? "Sign with " + approver + ". This wallet is " + session.accountId + "."
+        : "Connect " + approver + " to decide.";
+    }
     var block = api.signingBlock(session);
     if (block) return block;
     if (session.accountId === r.agent_account_id) return "Your account filed this request. The contract will not let you decide it.";
@@ -697,6 +723,9 @@
       if (i) node.append(el("br"));
       node.append(text(line));
     });
+    if (session && approver && session.accountId !== approver) {
+      node.append(el("br"), el("span", { class: "warn" }, ["Connect " + approver + " to sign this review."]));
+    }
     if (session && session.accountId === agent) {
       node.append(el("br"), el("span", { class: "warn" }, ["This is the agent account that files the items, so it cannot decide them."]));
     }
@@ -713,7 +742,9 @@
 
   function onSignedOut() {
     session = null;
-    renderSession(["Not connected. You can read the packet without a wallet."]);
+    renderSession([approver
+      ? "Not connected. Connect " + approver + " to sign. You can read the packet without a wallet."
+      : "Not connected. You can read the packet without a wallet."]);
   }
 
   async function connectWallet() {
@@ -778,6 +809,7 @@
   function fillSettings() {
     $("set-packet").value = packetId;
     $("set-agent").value = agent;
+    if ($("set-approver")) $("set-approver").value = approver;
     $("set-contract").value = cfg.contract;
     $("set-network").value = cfg.network;
     $("set-rpc").value = cfg.rpc;
@@ -809,7 +841,8 @@
     var hash = $("set-hash").value.trim();
     var pkt = $("set-packet").value.trim();
     var ag = $("set-agent").value.trim().toLowerCase();
-    if (!K.accountOk(contract) || !K.accountOk(ag)) return setBanner("Contract and agent must be valid account ids.", "bad");
+    var ap = $("set-approver") ? $("set-approver").value.trim().toLowerCase() : approver;
+    if (!K.accountOk(contract) || !K.accountOk(ag) || (ap && !K.accountOk(ap))) return setBanner("Contract, agent and approver must be valid account ids.", "bad");
     if (!K.rpcAllowed(rpc)) return setBanner("RPC must be HTTPS, or HTTP to localhost.", "bad");
     if (!PACKET_RE.test(pkt)) return setBanner("Packet name is not valid.", "bad");
     var q = new URLSearchParams();
@@ -819,13 +852,15 @@
     if (rpc !== K.defaultRpc(network)) q.set("rpc", rpc);
     if (hash !== (contract === K.DEFAULT_CONTRACT ? K.DEFAULT_HASH : "")) q.set("code_hash", hash);
     if (ag !== defaultAgent(contract)) q.set("agent", ag);
+    if (ap && ap !== defaultApprover(contract)) q.set("approver", ap);
     location.search = q.toString();
   });
 
   (async function start() {
     fillSettings();
     renderContract();
-    if (!K.accountOk(cfg.contract) || !K.accountOk(agent)) return setBanner("Contract or agent account id is not valid.", "bad");
+    if (!session) onSignedOut();
+    if (!K.accountOk(cfg.contract) || !K.accountOk(agent) || (approver && !K.accountOk(approver))) return setBanner("Contract, agent or approver account id is not valid.", "bad");
     if (!K.rpcAllowed(cfg.rpc)) return setBanner("RPC must be HTTPS, or HTTP to localhost.", "bad");
     try {
       await loadPacket();
