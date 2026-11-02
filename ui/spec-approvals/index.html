@@ -4,14 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <meta name="description" content="Review each item of a spec review packet and sign approve or reject on the NEAR approval contract.">
-  <title>Spec review</title>
-  <link rel="stylesheet" href="../shared/base.css">
-  <link rel="stylesheet" href="spec.css">
+  <meta name="description" content="Review each approval requirement (R1–R6, D1–D17) and sign approve or reject on the NEAR approval contract.">
+  <title>Spec review · requirements</title>
+  <meta http-equiv="Cache-Control" content="no-cache">
+  <link rel="stylesheet" href="../shared/base.css?v=2">
+  <link rel="stylesheet" href="../shared/spec.css?v=2">
 </head>
-<body>
+<body data-packet="requirements" data-group="prefix" data-agent="agent1" data-approver="approver1" data-packet-file="ui/spec-approvals/packets/requirements.json">
   <header>
-    <h1 id="packet-title">Spec review</h1>
+    <h1 id="packet-title">Approval requirements</h1>
     <p class="lede" id="packet-summary">Loading the packet…</p>
     <details id="packet-about">
       <summary>About this review</summary>
@@ -24,6 +25,7 @@
       <dt>Code</dt><dd id="meta-code">Checking…</dd>
       <dt>Owner</dt><dd id="meta-owner">Checking…</dd>
       <dt>Filed by</dt><dd id="meta-agent"></dd>
+      <dt>Approver</dt><dd id="meta-approver"></dd>
     </dl>
     <div class="row">
       <button type="button" id="connect" class="primary">Connect wallet</button>
@@ -41,12 +43,13 @@
   <p id="banner" class="status" hidden></p>
 
   <div class="layout">
-    <nav class="items" aria-label="Packet items">
+    <nav class="items" aria-label="Requirements">
+      <input id="item-filter" type="search" placeholder="Filter requirements" aria-label="Filter requirements" autocomplete="off" spellcheck="false">
       <ol id="item-list"><li class="empty">Loading…</li></ol>
     </nav>
     <main>
       <section class="detail" id="detail" aria-live="polite">
-        <p class="empty">Pick an item.</p>
+        <p class="empty">Pick a requirement.</p>
       </section>
     </main>
   </div>
@@ -71,6 +74,8 @@
         <input id="set-packet" name="packet" autocomplete="off" spellcheck="false" required>
         <label for="set-agent">Agent that files the items</label>
         <input id="set-agent" name="agent" autocomplete="off" spellcheck="false" required>
+        <label for="set-approver">Approver that signs</label>
+        <input id="set-approver" name="approver" autocomplete="off" spellcheck="false" required>
         <label for="set-contract">Contract account</label>
         <input id="set-contract" name="contract" autocomplete="off" spellcheck="false" required>
         <label for="set-network">Network</label>
@@ -85,7 +90,7 @@
         <p class="row"><button type="submit">Use these</button></p>
       </form>
     </details>
-    <p>Items are filed with <code>scripts/near/submit-spec-packet.sh</code>. The owner registers your wallet's public key with <code>scripts/near/add-approver.sh</code>. See <a href="README.md">README.md</a>. The request list is at <a id="approvals-link" href="../approvals/">the approver page</a>.</p>
+    <p>Items are filed with <code>scripts/near/submit-spec-packet.sh --packet ui/spec-approvals/packets/requirements.json</code>. The owner registers your wallet's public key with <code>scripts/near/add-approver.sh</code>. See <a href="README.md">README.md</a>. The full packet review is at <a href="../spec-approvals-full/">spec-approvals-full</a>. The request list is at <a id="approvals-link" href="../approvals/">the approver page</a>.</p>
   </footer>
 
   <!-- NEAR Connect 0.11.4, commit de0f08af1e07c19fe5f80070383231d16ef924f6. SRI pins the bytes. Same pin as ../approvals/. -->
@@ -93,8 +98,8 @@
     src="https://cdn.jsdelivr.net/gh/azbang/near-connect@de0f08af1e07c19fe5f80070383231d16ef924f6/cdn/hot-connect.iife.js"
     integrity="sha384-6eNPlV+Bf92wTtH7ZfZE8sZPdohJ84VDXuVVegFjBvJsGWE6BXTT1he2jKjalJ9L"
     crossorigin="anonymous"></script>
-  <script src="../shared/approval-kit.js"></script>
-  <script src="spec-kit.js"></script>
-  <script src="app.js"></script>
+  <script src="../shared/approval-kit.js?v=2"></script>
+  <script src="../shared/spec-kit.js?v=2"></script>
+  <script src="../shared/spec-app.js?v=2"></script>
 </body>
 </html>

@@ -12,7 +12,8 @@ cd ui && python3 -m http.server 8080
 
 Open <http://127.0.0.1:8080/approvals/>. Serve `ui/`, not this directory:
 the page loads `../shared/` (code shared with
-[`../spec-approvals/`](../spec-approvals/README.md)). Use HTTP on localhost,
+[`../spec-approvals/`](../spec-approvals/README.md) and
+[`../spec-approvals-full/`](../spec-approvals-full/README.md)). Use HTTP on localhost,
 not `file://`: wallet extensions and the clipboard do not reliably work from
 a file URL. No install and no build.
 

@@ -1,4 +1,5 @@
-/* Spec approval page: base.css plus a two-column layout for items and their detail. */
+/* Spec approval pages: base.css plus a two-column layout for items and their detail.
+   Shared by ui/spec-approvals and ui/spec-approvals-full. */
 body { max-width: 76rem; }
 .lede { max-width: 46rem; }
 .progress { margin: 1rem 0 0.5rem; }
@@ -22,18 +23,27 @@ body { max-width: 76rem; }
 }
 nav.items ol { list-style: none; margin: 0; padding: 0; }
 nav.items li { margin: 0 0 0.4rem; }
+nav.items li.group {
+  margin: 0.85rem 0 0.25rem;
+  padding: 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+nav.items li.empty { color: var(--muted); }
+#item-filter { margin: 0 0 0.6rem; }
 nav.items button {
   width: 100%;
   text-align: left;
   display: grid;
-  grid-template-columns: 2.6rem 1fr;
+  grid-template-columns: 5.5rem 1fr;
   gap: 0 0.5rem;
   padding: 0.5rem 0.6rem;
   background: var(--bg);
   color: var(--text);
 }
 nav.items button[aria-current="true"] { border-color: LinkText; box-shadow: inset 3px 0 0 LinkText; }
-nav.items .iid { font-weight: 650; }
+nav.items .iid { font-weight: 650; white-space: nowrap; }
 nav.items .ititle { overflow-wrap: anywhere; }
 nav.items .isub { grid-column: 2; font-size: 0.88rem; color: var(--muted); }
 .chip {
@@ -76,3 +86,16 @@ textarea {
 .decision { margin-top: 1.5rem; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 0.4rem; }
 .decision h3 { margin-top: 0; }
 .stack > * + * { margin-top: 0.5rem; }
+.statement {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 0.92rem/1.45 ui-monospace, monospace;
+  background: var(--soft);
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.3rem;
+}
+dl.facts { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 0.25rem 0.75rem; margin: 0.35rem 0 0; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+ul.see { padding-left: 1.2rem; }
+ul.see li { margin: 0.3rem 0; }

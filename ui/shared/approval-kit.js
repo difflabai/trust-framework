@@ -1,5 +1,6 @@
 /*
- * Shared pieces of the approval contract UIs (ui/approvals, ui/spec-approvals).
+ * Shared pieces of the approval contract UIs (ui/approvals, ui/spec-approvals,
+ * ui/spec-approvals-full).
  * A classic script: it defines window.ApprovalKit and nothing else. No build,
  * no dependencies. The wallet connector (NEAR Connect) is loaded by each page
  * with its own pinned <script integrity=...> tag; this file only uses
@@ -255,46 +256,96 @@
       return { requests: got.filter(Boolean), failed: failed };
     }
 
+    // Wallets report the key as "ed25519:…", as bare base58, or not at all.
+    // near-sdk accepts only the prefixed form.
+    function normalizePublicKey(raw) {
+      if (!raw) return "";
+      if (typeof raw !== "string") {
+        if (typeof raw === "object") return normalizePublicKey(raw.publicKey || raw.public_key || raw.key || "");
+        return "";
+      }
+      var s = raw.trim();
+      var prefixed = /^(ed25519|secp256k1):/i.exec(s);
+      if (prefixed) return prefixed[1].toLowerCase() + ":" + s.slice(prefixed[0].length);
+      if (/^[1-9A-HJ-NP-Za-km-z]{32,}$/.test(s)) return "ed25519:" + s;
+      return s;
+    }
+
+    function reportedPublicKey(account) {
+      return normalizePublicKey(account.publicKey || account.public_key || "");
+    }
+
+    async function registeredApproverKeys(accountId) {
+      var list = await rpcQuery({ request_type: "view_access_key_list", finality: "final", account_id: accountId });
+      var found = [];
+      var keys = list.keys || [];
+      for (var i = 0; i < keys.length; i++) {
+        var pk = keys[i].public_key;
+        var principal = null;
+        try { principal = await view("get_principal", { public_key: pk }); } catch (e) { continue; }
+        if (principal && principal.role === "approver" && principal.account_id === accountId) {
+          found.push({
+            publicKey: pk,
+            principal: principal,
+            permission: keys[i].access_key && keys[i].access_key.permission
+          });
+        }
+      }
+      return found;
+    }
+
     // The wallet account's key: its permission on the account and its
     // registration on this contract. Returns {session, lines}.
+    // A browser wallet often omits publicKey, or names a key the contract
+    // cannot parse. The account may still sign if one of its access keys is
+    // a registered approver key; the contract checks the key that signs.
     async function describeSession(account) {
+      var reported = reportedPublicKey(account);
       var session = {
         accountId: account.accountId,
-        publicKey: account.publicKey || "",
+        publicKey: reported,
         principal: null,
         permission: null
       };
       var lines = ["Connected as " + account.accountId + "."];
-      if (!account.publicKey) {
-        lines.push("The wallet did not report a public key. approve will fail unless the key it signs with is already registered.");
-        return { session: session, lines: lines };
+      if (reported) {
+        lines.push("Wallet signing key " + reported + ".");
+        try {
+          var principal = await view("get_principal", { public_key: reported });
+          if (principal && principal.role === "approver" && principal.account_id === account.accountId) {
+            session.principal = principal;
+            lines.push("Registered approver, registration " + principal.registration_id + ".");
+            return { session: session, lines: lines };
+          }
+          if (principal && principal.role !== "approver") lines.push("That key is registered as " + principal.role + ", not approver.");
+          else if (principal) lines.push("That key is registered to " + principal.account_id + ", not this account.");
+        } catch (err) {
+          lines.push("Could not read get_principal for the wallet key (" + errorText(err) + ").");
+        }
+      } else {
+        lines.push("The wallet did not report a signing key.");
       }
-      lines.push("Signing key " + account.publicKey + ".");
       try {
-        var access = await rpcQuery({
-          request_type: "view_access_key",
-          finality: "final",
-          account_id: account.accountId,
-          public_key: account.publicKey
-        });
-        session.permission = access.permission;
-        lines.push("On the account this key is " + permissionLabel(access.permission) + ".");
-        if (access.permission === "FullAccess") {
-          lines.push("A full-access key can be registered with add-approver.sh --force. It is weaker than a key limited to approve and reject on this contract.");
+        var found = await registeredApproverKeys(account.accountId);
+        var chosen = found.filter(function (k) { return k.publicKey === reported; })[0]
+          || found.filter(function (k) { return k.permission === "FullAccess"; })[0]
+          || found[0];
+        if (chosen) {
+          session.publicKey = chosen.publicKey;
+          session.principal = chosen.principal;
+          session.permission = chosen.permission;
+          lines.push("Registered approver key on this account: " + chosen.publicKey + " (registration " + chosen.principal.registration_id + "). The wallet must sign with that key.");
+          if (chosen.permission === "FullAccess") {
+            lines.push("That key is full-access. A key limited to approve and reject is stronger.");
+          }
+          return { session: session, lines: lines };
         }
       } catch (err) {
-        lines.push("Could not read that access key (" + errorText(err) + ").");
+        lines.push("Could not list this account's keys (" + errorText(err) + ").");
       }
-      try {
-        var principal = await view("get_principal", { public_key: account.publicKey });
-        session.principal = principal;
-        if (!principal) lines.push("Not registered on this contract. The owner has to add it before you can sign.");
-        else if (principal.role !== "approver") lines.push("Registered as " + principal.role + ", not approver.");
-        else if (principal.account_id !== account.accountId) lines.push("Registered to " + principal.account_id + ", not this account.");
-        else lines.push("Registered approver, registration " + principal.registration_id + ".");
-      } catch (err) {
-        lines.push("Could not read get_principal (" + errorText(err) + ").");
-      }
+      lines.push(reported
+        ? "Not registered on this contract. The owner has to add " + reported + " before you can sign."
+        : "This account has no registered approver key.");
       return { session: session, lines: lines };
     }
 
@@ -302,7 +353,11 @@
     function signingBlock(session) {
       if (!cfg.codeOk) return "Signing is disabled until the contract code hash matches the expected hash.";
       if (!session) return "Connect the wallet that holds your approver key.";
-      if (!session.principal || session.principal.role !== "approver") return "This key is not a registered approver key.";
+      if (!session.principal || session.principal.role !== "approver") {
+        return session.publicKey
+          ? "This key is not a registered approver key (" + session.publicKey + ")."
+          : "This account has no registered approver key.";
+      }
       if (session.principal.account_id !== session.accountId) return "The registered key is bound to a different account.";
       return "";
     }

@@ -1,0 +1,26 @@
+{
+  "packet": {
+    "id": "requirements",
+    "version": "2026-10-30",
+    "title": "approval requirements",
+    "summary": "Approve or reject each requirement (R1–R6, D1–D17), one signature per sentence. You certify that the sentence says what the contract is meant to do, and that the properties listed under it are the right discharge. The property text is the proof obligation; you are not signing that text as the requirement.",
+    "qualifies": "A named human who did not write approval-core. Claude sessions wrote most of the specs and harnesses, so a review by Claude does not count.",
+    "why_a_day": [
+      "The 23 sentences are requirement/2 in prolog/requirements/approval_req.pl. That file was written from strategy.md (the Target, sections 1–4 and 5.12) and the contract README, not from the Rust. The Prolog step machine was then written from these sentences.",
+      "Each item signs one sentence and the properties traceability.pl says discharge it. Several properties share one sentence. A low-level statement such as the add_principal post-state is a proof obligation under a sentence, not a sentence of its own.",
+      "The full packet (ui/spec-approvals-full) is a separate review. Signing a requirement here does not sign that packet."
+    ],
+    "sources": {
+      "formalver": {
+        "repo": "difflabai/formalver",
+        "commit": "f3c64714853649374342e8833c687444b3a057e4",
+        "root": "projects/near-approval"
+      },
+      "trust-framework": {
+        "repo": "difflabai/trust-framework",
+        "commit": "18f57cb218f391d59d14f9db68dd2dd6951d71fb",
+        "root": ""
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-/* Shared by ui/approvals and ui/spec-approvals. System colours and fonts, light and dark. */
+/* Shared by ui/approvals, ui/spec-approvals and ui/spec-approvals-full. System colours and fonts, light and dark. */
 :root {
   color-scheme: light dark;
   --text: CanvasText;

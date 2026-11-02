@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Spec review packets on the approval contract: one request per packet item.
 
-Each item of a packet manifest (ui/spec-approvals/packets/*.json, built by
-ui/spec-approvals/tools/build-packet.py) becomes one `request_action`. The
-action names the packet, the item and the SHA-256 of the item's canonical
-payload, so an approval on chain binds to the exact text the reviewer read.
-ui/spec-approvals/spec-kit.js computes the same payload, hash and action;
+Each item of a packet manifest (ui/spec-approvals/packets/*.json or
+ui/spec-approvals-full/packets/*.json, built by the tools/build-packet.py
+next to it) becomes one `request_action`. The action names the packet, the
+item and the SHA-256 of the item's canonical payload, so an approval on
+chain binds to the exact text the reviewer read.
+ui/shared/spec-kit.js computes the same payload, hash and action;
 `check` prints them so the two can be compared.
 
 Canonical payload of item X (UTF-8 JSON, object keys sorted at every level,
