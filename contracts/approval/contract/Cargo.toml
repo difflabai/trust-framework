@@ -12,10 +12,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 approval-core = { path = "../core", features = ["borsh"] }
-near-sdk = "5.29"
+# Use Rust's standard allocator instead of the SDK's unmaintained wee_alloc default.
+near-sdk = { version = "5.29", default-features = false }
 
 [dev-dependencies]
-near-sdk = { version = "5.29", features = ["unit-testing"] }
+near-sdk = { version = "5.29", default-features = false, features = ["unit-testing"] }
 
 # `cargo near build reproducible-wasm` builds inside this pinned image, so the
 # wasm's code hash can be reproduced from the source at a given commit.
