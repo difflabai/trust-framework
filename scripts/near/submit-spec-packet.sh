@@ -15,7 +15,7 @@
 # them (the contract has no cancel), so the reviewer should reject them.
 #
 # Credentials come from .env (ENV_FILE), like every script here. The agent
-# is --agent, else APPROVAL_AGENT_ACCOUNT_ID, else spec-agent (a short name
+# is --agent, else APPROVAL_AGENT_ACCOUNT_ID, else agent1 (a short name
 # means <name>.<NEAR_ACCOUNT_ID>). It signs the way request-action.sh does:
 # --key-file PATH, else the stored key
 # <NEAR_CREDENTIALS_DIR>/<network>/<agent>.agent.json, else APPROVAL_AGENT_*
@@ -89,7 +89,7 @@ case $PACKET in /*) ;; *) PACKET="$PWD/$PACKET" ;; esac
 near_load_config
 SPY() { "$NEAR_PYTHON" -I -X utf8 "$NEAR_SCRIPTS_DIR/spec_packet.py" "$@"; }
 SPY check "$PACKET" >/dev/null || die "invalid packet manifest $PACKET"
-AGENT=$(principal_account "${AGENT_ARG:-${APPROVAL_AGENT_ACCOUNT_ID:-spec-agent}}")
+AGENT=$(principal_account "${AGENT_ARG:-${APPROVAL_AGENT_ACCOUNT_ID:-agent1}}")
 near_require_contract
 
 # Every request on the contract (get_request per id; there is no index).

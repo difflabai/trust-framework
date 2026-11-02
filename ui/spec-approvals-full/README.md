@@ -42,15 +42,16 @@ this directory: the page loads `../shared/`. Use HTTP on localhost, not
    ```bash
    scripts/near/submit-spec-packet.sh --dry-run        # plan; sends nothing
    scripts/near/submit-spec-packet.sh                  # files as the .env agent (APPROVAL_AGENT_*)
-   scripts/near/submit-spec-packet.sh --setup-agent    # or, with no agent in .env: creates spec-agent.<NEAR_ACCOUNT_ID>
+   scripts/near/submit-spec-packet.sh --setup-agent    # or, with no agent in .env: creates agent1.<NEAR_ACCOUNT_ID>
    ```
 
    The script reads its credentials from `.env`, like every script in
    `scripts/near/` (see [its README](../../scripts/near/README.md)). The
    agent is `APPROVAL_AGENT_ACCOUNT_ID` when `.env` has one (set by
    `principal-env.sh`, signing with `APPROVAL_AGENT_PRIVATE_KEY`), else
-   `spec-agent.<NEAR_ACCOUNT_ID>`. The page counts requests from
-   `agent1.<parent>` unless you open it with `?agent=<that account>`.
+   `agent1.<NEAR_ACCOUNT_ID>`. That is the same account the page counts
+   (`data-agent`). Open it with `?agent=<that account>` only if you filed
+   as someone else.
    The script is idempotent: re-running it files
    only the items that are missing.
 

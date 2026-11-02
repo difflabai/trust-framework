@@ -55,7 +55,9 @@ do not collide.
    The script reads its credentials from `.env`, like every script in
    `scripts/near/` (see [its README](../../scripts/near/README.md)). It is
    idempotent: re-running it files only the requirements that are missing.
-   Open the page with `?agent=<that account>` if the agent is not `agent1`.
+   With no `--agent` and no `APPROVAL_AGENT_ACCOUNT_ID`, it files as
+   `agent1.<NEAR_ACCOUNT_ID>`, the account this page counts. Open the page
+   with `?agent=<that account>` only if you filed as someone else.
 
 2. The owner registers the reviewer's wallet key as an approver:
 
